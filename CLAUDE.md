@@ -14,22 +14,47 @@ survivors fall via gravity and new dots spawn from the top.
 **Current status:** greenfield — app not yet scaffolded. Game design approved via brainstorm.
 Game design doc: `docs/two-dots-game-design.md`. Team workflow design: `docs/team-workflow-design.md`.
 
-## Tech Stack (draft — decided in brainstorm, not yet scaffolded)
+## Tech Stack (decided — not yet scaffolded)
+
+**Why React Native:** pure mobile, **iOS first then Android** — one TS codebase ships both stores via EAS.
+Native (Swift+Kotlin) = 2 codebases; Unity = overkill for simple 2D. No web version → no monorepo.
 
 | Concern | Choice |
 |---------|--------|
-| App shell / build | **Expo** (dev client — NOT Expo Go, because Skia needs native code) + **EAS Build/Submit** for iOS |
+| Language | TypeScript |
+| App shell / build | **Expo** (dev client — NOT Expo Go, because Skia needs native code) + **EAS Build/Submit** (iOS first, then Android) |
+| Navigation | **`expo-router`** — file-based; ~4 screens (title / game / game-over / settings) |
 | Rendering | **`@shopify/react-native-skia`** — board drawn as one GPU canvas (dots, link path, particles) |
 | Animation | **`react-native-reanimated`** v3 — falling/spring/clear tweens in UI-thread worklets |
 | Gestures | **`react-native-gesture-handler`** — pan gesture; touch→grid hit-test + chain logic in worklet |
-| Meta UI state | **Zustand** (title/HUD/settings); board sim state in Reanimated shared values for the hot loop |
-| Persistence | **`react-native-mmkv`** (or AsyncStorage) — high score + settings. No backend in v1. |
+| State | **Zustand** (UI/meta: HUD, settings); board sim state in Reanimated shared values for the hot loop |
+| Persistence | **`react-native-mmkv`** — high score + settings. No backend in v1. |
 | Audio | **`expo-av`** — SFX |
-| Language | TypeScript |
+| Testing | **Vitest** — unit-tests the pure-TS core ONLY (see Development Rules) |
+| Lint / format | **ESLint** (`eslint-config-expo`) + **Prettier** |
+| Package manager | **npm** |
 
 **Performance principle:** keep gesture + hit-test + animation on the UI thread (worklets) to avoid
 the JS↔native bridge — that bridge is the classic cause of RN game jank. Entity count is tiny
 (~36–64 dots), no physics sim beyond falling tweens, no 3D, no networking.
+
+## Infrastructure (decided — wired at scaffold)
+
+| Area | Choice |
+|------|--------|
+| Build / release | **EAS Build + EAS Submit** → TestFlight (iOS), Google Play (Android phase) |
+| Crash reporting | **Sentry** (`@sentry/react-native`) |
+| Analytics | **PostHog** — privacy-friendly; no IDFA → avoids iOS ATT prompt; EU-hosting option |
+| OTA updates | **`expo-updates`** (`eas update`) — push JS-only fixes without a store review |
+| CI | **GitHub Actions**: lint + typecheck + Vitest core (wired at scaffold) |
+| Git hooks | **Husky + lint-staged** (wired at scaffold) |
+| Backend | **None for v1** — Sentry/PostHog are 3rd-party SaaS, not our servers |
+
+**Privacy/compliance:** analytics requires App Store Privacy Nutrition Labels + Google Play Data Safety
+disclosures (PostHog keeps this minimal). Keep Sentry/PostHog keys OUT of git (use EAS secrets / env).
+
+**Android phase caveat:** Skia + Reanimated run great on iOS; Android device fragmentation means
+testing on a cheap real Android device is required before the Play release.
 
 ## Architecture (layered)
 
@@ -52,18 +77,23 @@ online/leaderboards, accounts/cloud-save, Android. Architecture must not block t
 
 > Not yet scaffolded. Populate once `package.json` exists. Expected (Expo):
 - `npx expo start --dev-client` — run dev client
-- `npx expo run:ios` — local iOS build/run
-- `eas build --platform ios` — cloud iOS build
-- `eas submit --platform ios` — submit to App Store / TestFlight
+- `npx expo run:ios` / `npx expo run:android` — local build/run
+- `npm test` — Vitest (pure-TS core)
+- `eas build --platform ios|android` — cloud build
+- `eas submit --platform ios|android` — submit to TestFlight / Google Play
+- `eas update` — push an OTA (JS-only) update
 
 ## Development Rules
 
 - Principles: **YAGNI · KISS · DRY**. Keep code files focused (~<200 lines); split by responsibility.
 - File naming: kebab-case for TS/JS with descriptive names.
-- Keep the game core free of RN/Skia imports so it stays unit-testable and web-portable.
+- Keep the game core (`src/core/`) free of RN/Skia imports — Vitest can ONLY test RN-free code.
+- **Test boundary:** Vitest unit-tests the pure-TS core (chain/loop/gravity/scoring). The Skia /
+  Reanimated / gesture layers are NOT Vitest-testable (worklets, native) → verify them ON-DEVICE.
 - Pin Skia ↔ Reanimated ↔ Expo SDK versions together (top setup-pain source) — let the Expo SDK lock them.
 - No fake data / mocks just to pass builds. Implement real logic.
-- Test on a REAL iPhone for "feel" (touch ≠ simulator mouse) before calling drag UX done.
+- Test on a REAL device for "feel" (touch ≠ simulator mouse) — iPhone first, then a low-end Android.
+- Keep Sentry/PostHog keys OUT of git (EAS secrets / env vars).
 
 ## Team Workflow (everyone follows this, every task)
 
@@ -114,5 +144,6 @@ After a bug fix or review, ask: **is this lesson reusable / will it recur?**
 ## Key References
 
 - Game design: `docs/two-dots-game-design.md`
+- Tech stack & infra: `docs/tech-stack-and-infra.md`
 - Team workflow design: `docs/team-workflow-design.md`
 - Genre reference: Two Dots (Playdots/Zynga) — mechanic source of truth.
