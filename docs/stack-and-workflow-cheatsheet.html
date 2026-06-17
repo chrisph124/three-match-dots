@@ -122,7 +122,8 @@
       <div class="card"><div class="k">Persistence</div><div class="v">react-native-mmkv</div><div class="d">high score + settings</div></div>
       <div class="card"><div class="k">Audio</div><div class="v">expo-av</div><div class="d">SFX</div></div>
       <div class="card"><div class="k">Testing</div><div class="v">Vitest</div><div class="d">pure-TS core only</div></div>
-      <div class="card"><div class="k">Lint / format</div><div class="v">ESLint + Prettier</div><div class="d">eslint-config-expo</div></div>
+      <div class="card"><div class="k">Lint / format</div><div class="v">ESLint + sonarjs + Prettier</div><div class="d">eslint-config-expo + SonarLint rules</div></div>
+      <div class="card" style="border-left:4px solid var(--purple);"><div class="k">Type safety</div><div class="v">strict · no <code>any</code></div><div class="d">use unknown / Record&lt;string, unknown&gt; / &lt;T&gt;</div></div>
       <div class="card"><div class="k">Package manager</div><div class="v">npm</div></div>
     </div>
 
@@ -142,9 +143,10 @@
       <div class="card"><div class="k">Crash reporting</div><div class="v">Sentry</div><div class="d">@sentry/react-native</div></div>
       <div class="card"><div class="k">Analytics</div><div class="v">PostHog</div><div class="d">no IDFA → no iOS ATT prompt</div></div>
       <div class="card"><div class="k">OTA updates</div><div class="v">expo-updates</div><div class="d"><code>eas update</code> — JS-only fixes, no review</div></div>
-      <div class="card"><div class="k">CI</div><div class="v">GitHub Actions</div><div class="d">lint + typecheck + Vitest</div></div>
+      <div class="card"><div class="k">Code quality</div><div class="v">SonarCloud</div><div class="d">+ eslint-plugin-sonarjs · smells, complexity, coverage</div></div>
+      <div class="card"><div class="k">CI</div><div class="v">GitHub Actions</div><div class="d">lint (sonarjs) + typecheck (no-any) + Vitest (+coverage→Sonar)</div></div>
       <div class="card"><div class="k">Git hooks</div><div class="v">Husky + lint-staged</div><div class="d">pre-commit / pre-push</div></div>
-      <div class="card"><div class="k">Backend</div><div class="v">None (v1)</div><div class="d">Sentry/PostHog are SaaS, not our servers</div></div>
+      <div class="card"><div class="k">Backend</div><div class="v">None (v1)</div><div class="d">Sentry/PostHog/SonarCloud are SaaS, not our servers</div></div>
     </div>
 
     <h2>Build &amp; Release Pipeline</h2>
@@ -169,6 +171,8 @@
         <li><b>Android low-end perf.</b> Test on a cheap real Android device before the Play release.</li>
         <li><b>OTA is JS-only.</b> Native changes (new native module) still need a full store build.</li>
         <li><b>Keys out of git.</b> Sentry/PostHog keys via EAS secrets / env vars.</li>
+        <li><b>SonarCloud is free for PUBLIC repos only.</b> If the repo is private it's paid; eslint-plugin-sonarjs stays free.</li>
+        <li><b>Strict no-<code>any</code> escape hatch.</b> Untyped 3rd-party libs → allowed only via inline eslint-disable + justification comment.</li>
       </ul>
     </div>
   </section>
@@ -195,6 +199,22 @@
       <div class="step"><div class="n">5</div><div class="t">Review</div><div class="s">AI + human</div><div class="skillpill">requesting-code-review</div><div class="o">→ PR + review</div></div>
       <div class="arrow">→</div>
       <div class="step"><div class="n">6</div><div class="t">Lesson-learned</div><div class="s">avoid repeat bugs</div><div class="skillpill">writing-skills</div><div class="o">→ skill in <code>.claude/skills/</code> (if reusable)</div></div>
+    </div>
+
+    <h2>Definition of Done (every fix / feature / scaffold)</h2>
+    <div class="pipe">
+      <div class="step"><div class="n" style="background:var(--green)">✓</div><div class="t">Tests</div><div class="s">check or create</div><div class="o">bug → failing regression test FIRST (red → green)</div></div>
+      <div class="arrow">+</div>
+      <div class="step"><div class="n" style="background:var(--blue)">✓</div><div class="t">Review</div><div class="s">before merge</div><div class="o">superpowers:requesting-code-review</div></div>
+      <div class="arrow">+</div>
+      <div class="step"><div class="n" style="background:var(--red)">✓</div><div class="t">Green</div><div class="s">CI-blocking</div><div class="o">lint + typecheck + tests pass</div></div>
+    </div>
+
+    <h2>Code Standards (CI-blocking)</h2>
+    <div class="grid">
+      <div class="card" style="border-left:4px solid var(--purple);"><div class="v">No <code>any</code></div><div class="d">use <code>unknown</code> / <code>Record&lt;string, unknown&gt;</code> / generics <code>&lt;T&gt;</code>. <code>no-explicit-any</code> = error; escape hatch needs a justification comment.</div></div>
+      <div class="card" style="border-left:4px solid var(--red);"><div class="v">Lint clean — SonarLint</div><div class="d"><code>eslint-plugin-sonarjs</code> + SonarCloud. Errors block commit / push / CI.</div></div>
+      <div class="card" style="border-left:4px solid var(--green);"><div class="v">Strict tsconfig</div><div class="d"><code>strict: true</code> · <code>noImplicitAny</code></div></div>
     </div>
 
     <div class="twocol" style="margin-top:24px;">
