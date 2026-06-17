@@ -118,6 +118,13 @@ A change is NOT done until ALL hold:
 2. **Code review** run via `superpowers:requesting-code-review` before merge.
 3. **Lint + typecheck + tests all green** (the CI-blocking standards above).
 
+## Commit & PR Conventions
+
+- **No AI attribution — ever.** Never add Claude (or any AI/tool) as author, co-author, or contributor.
+  No `Co-Authored-By: Claude`, no "Generated with…", no AI references in commit messages, PR
+  descriptions, or code comments. Commits are authored solely by the human committer.
+- Conventional commits: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`. Describe the change, not the tool.
+
 ## Team Workflow (everyone follows this, every task)
 
 This team uses **superpowers** (free) — NOT claudekit (`/ck:*`). Do not use `/ck:*` commands here.

@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # JS/TS dependencies (activates once package.json exists)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    groups:
+      # Batch low-risk updates into one PR to cut noise
+      dev-and-minor:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Keep GitHub Actions versions current
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"
