@@ -143,10 +143,10 @@
       <div class="card"><div class="k">Crash reporting</div><div class="v">Sentry</div><div class="d">@sentry/react-native</div></div>
       <div class="card"><div class="k">Analytics</div><div class="v">PostHog</div><div class="d">no IDFA → no iOS ATT prompt</div></div>
       <div class="card"><div class="k">OTA updates</div><div class="v">expo-updates</div><div class="d"><code>eas update</code> — JS-only fixes, no review</div></div>
-      <div class="card"><div class="k">Code quality</div><div class="v">SonarCloud</div><div class="d">+ eslint-plugin-sonarjs · smells, complexity, coverage</div></div>
-      <div class="card"><div class="k">CI</div><div class="v">GitHub Actions</div><div class="d">lint (sonarjs) + typecheck (no-any) + Vitest (+coverage→Sonar)</div></div>
+      <div class="card"><div class="k">Code quality / security</div><div class="v">sonarjs · CodeQL · Dependabot</div><div class="d">SonarLint rules in CI + GitHub scanning (free, public)</div></div>
+      <div class="card"><div class="k">CI</div><div class="v">GitHub Actions</div><div class="d">lint (sonarjs) + typecheck (no-any) + Vitest (+coverage)</div></div>
       <div class="card"><div class="k">Git hooks</div><div class="v">Husky + lint-staged</div><div class="d">pre-commit / pre-push</div></div>
-      <div class="card"><div class="k">Backend</div><div class="v">None (v1)</div><div class="d">Sentry/PostHog/SonarCloud are SaaS, not our servers</div></div>
+      <div class="card"><div class="k">Backend</div><div class="v">None (v1)</div><div class="d">Sentry/PostHog are SaaS, not our servers</div></div>
     </div>
 
     <h2>Build &amp; Release Pipeline</h2>
@@ -171,7 +171,6 @@
         <li><b>Android low-end perf.</b> Test on a cheap real Android device before the Play release.</li>
         <li><b>OTA is JS-only.</b> Native changes (new native module) still need a full store build.</li>
         <li><b>Keys out of git.</b> Sentry/PostHog keys via EAS secrets / env vars.</li>
-        <li><b>SonarCloud is free for PUBLIC repos only.</b> If the repo is private it's paid; eslint-plugin-sonarjs stays free.</li>
         <li><b>Strict no-<code>any</code> escape hatch.</b> Untyped 3rd-party libs → allowed only via inline eslint-disable + justification comment.</li>
       </ul>
     </div>
@@ -213,7 +212,7 @@
     <h2>Code Standards (CI-blocking)</h2>
     <div class="grid">
       <div class="card" style="border-left:4px solid var(--purple);"><div class="v">No <code>any</code></div><div class="d">use <code>unknown</code> / <code>Record&lt;string, unknown&gt;</code> / generics <code>&lt;T&gt;</code>. <code>no-explicit-any</code> = error; escape hatch needs a justification comment.</div></div>
-      <div class="card" style="border-left:4px solid var(--red);"><div class="v">Lint clean — SonarLint</div><div class="d"><code>eslint-plugin-sonarjs</code> + SonarCloud. Errors block commit / push / CI.</div></div>
+      <div class="card" style="border-left:4px solid var(--red);"><div class="v">Lint clean — SonarLint</div><div class="d"><code>eslint-plugin-sonarjs</code> (no SaaS). Errors block commit / push / CI.</div></div>
       <div class="card" style="border-left:4px solid var(--green);"><div class="v">Strict tsconfig</div><div class="d"><code>strict: true</code> · <code>noImplicitAny</code></div></div>
     </div>
 

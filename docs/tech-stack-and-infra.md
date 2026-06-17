@@ -36,10 +36,11 @@ planned → no monorepo needed.
 | Crash reporting | Sentry (`@sentry/react-native`) |
 | Analytics | **PostHog** (privacy-friendly; no IDFA → no iOS ATT prompt; EU-hosting option) |
 | OTA updates | `expo-updates` (`eas update`) — push JS-only fixes without store review |
-| Code quality | **SonarCloud** + `eslint-plugin-sonarjs` — code smells, complexity, coverage tracking |
-| CI | GitHub Actions: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest (+ coverage → SonarCloud) — wired at scaffold |
+| Code quality | **`eslint-plugin-sonarjs`** (SonarLint rules) — local + CI, free. No SonarCloud SaaS (redundant). |
+| Security scan | **CodeQL** (`.github/workflows/codeql.yml`, JS/TS) + **Dependabot** (npm + actions) — free on public repo |
+| CI | GitHub Actions: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest (+ coverage) — wired at scaffold |
 | Git hooks | Husky + lint-staged — wired at scaffold |
-| Backend | NONE for v1 (Sentry/PostHog/SonarCloud are 3rd-party SaaS, not our servers) |
+| Backend | NONE for v1 (Sentry/PostHog are 3rd-party SaaS, not our servers) |
 
 ## Key Decisions & Rationale
 
@@ -50,7 +51,7 @@ planned → no monorepo needed.
 - **PostHog over Firebase**: lighter, privacy-friendlier, avoids ATT/IDFA burden.
 - **OTA on**: fast iteration for a game that'll be tuned heavily.
 - **No `any` + SonarLint**: strict TS (`unknown`/`Record<string, unknown>`/generics over `any`), Sonar rules
-  via `eslint-plugin-sonarjs` + SonarCloud. Lint/typecheck CI-blocking; `any` escape hatch needs a justification comment.
+  via `eslint-plugin-sonarjs` (no SonarCloud SaaS — redundant). Lint/typecheck CI-blocking; `any` escape hatch needs a justification comment.
 - **Definition of Done**: every bug fix / feature → unit test checked-or-created (bug = regression test first), code review run.
 
 ## Caveats / Risks
@@ -61,7 +62,6 @@ planned → no monorepo needed.
 | Analytics = compliance overhead | App Store Privacy Nutrition Labels + Google Play Data Safety disclosures required; possible GDPR consent. PostHog minimizes this. |
 | Android low-end perf | Skia+Reanimated great on iOS; Android device fragmentation → test on a cheap real Android device in the Android phase. |
 | OTA limits | `expo-updates` ships JS only; native changes (new native module) still need a store build. |
-| SonarCloud cost | Free for PUBLIC repos only; if the repo is PRIVATE, SonarCloud is paid. `eslint-plugin-sonarjs` is free regardless. |
 | Strict no-`any` friction | Untyped 3rd-party libs may force `any` — allowed only via inline `eslint-disable` + justification comment. |
 
 ## Success Criteria
@@ -74,7 +74,7 @@ planned → no monorepo needed.
 ## Next Steps
 
 1. Update root `CLAUDE.md` stack/infra sections (this round).
-2. Scaffold Expo app (expo-router template) → wire Vitest, ESLint+sonarjs+Prettier, strict tsconfig, Husky, CI, Sentry, PostHog, expo-updates, SonarCloud.
+2. Scaffold Expo app (expo-router template) → wire Vitest, ESLint+sonarjs+Prettier, strict tsconfig, Husky, CI, Sentry, PostHog, expo-updates.
 3. iOS path first (EAS → TestFlight); Android path second (EAS → Play).
 
 ## Unresolved Questions
@@ -82,5 +82,3 @@ planned → no monorepo needed.
 - Sentry + PostHog account/org setup — who owns the accounts/keys? (store keys outside git)
 - EU vs US data hosting for PostHog (GDPR posture)?
 - Minimum supported iOS / Android OS versions?
-- **Is the repo public or private?** Determines whether SonarCloud is free (public) or paid (private).
-- SonarCloud quality gate thresholds (coverage %, new-code rules) — set at CI wiring.

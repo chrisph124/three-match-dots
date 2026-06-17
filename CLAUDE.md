@@ -46,16 +46,14 @@ the JS↔native bridge — that bridge is the classic cause of RN game jank. Ent
 | Crash reporting | **Sentry** (`@sentry/react-native`) |
 | Analytics | **PostHog** — privacy-friendly; no IDFA → avoids iOS ATT prompt; EU-hosting option |
 | OTA updates | **`expo-updates`** (`eas update`) — push JS-only fixes without a store review |
-| Code quality | **SonarCloud** + **`eslint-plugin-sonarjs`** — code smells, complexity, coverage tracking |
-| CI | **GitHub Actions**: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest core (+ coverage → SonarCloud) |
+| Code quality | **`eslint-plugin-sonarjs`** (SonarLint rules) — local + CI, free. No SonarCloud SaaS (redundant). |
+| Security scan | **CodeQL** (`.github/workflows/codeql.yml`) + **Dependabot** (`.github/dependabot.yml`) — active, free on public repo |
+| CI | **GitHub Actions**: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest core (+ coverage) — ONE workflow at scaffold |
 | Git hooks | **Husky + lint-staged** (wired at scaffold) |
-| Backend | **None for v1** — Sentry/PostHog/SonarCloud are 3rd-party SaaS, not our servers |
+| Backend | **None for v1** — Sentry/PostHog are 3rd-party SaaS, not our servers |
 
 **Privacy/compliance:** analytics requires App Store Privacy Nutrition Labels + Google Play Data Safety
 disclosures (PostHog keeps this minimal). Keep Sentry/PostHog keys OUT of git (use EAS secrets / env).
-
-**SonarCloud cost caveat:** free for **public** repos only — if `three-match-dots` is **private**, SonarCloud
-is a paid plan (`eslint-plugin-sonarjs` still works locally/CI for free regardless).
 
 **Android phase caveat:** Skia + Reanimated run great on iOS; Android device fragmentation means
 testing on a cheap real Android device is required before the Play release.
@@ -106,7 +104,7 @@ online/leaderboards, accounts/cloud-save, Android. Architecture must not block t
   Escape hatch ONLY via an inline `// eslint-disable-next-line ...` WITH a justification comment
   (e.g. genuinely untyped 3rd-party lib). No silent `any`.
 - **Lint clean — SonarLint rules.** Follow SonarLint via `eslint-plugin-sonarjs` (code smells,
-  cognitive complexity) + the SonarCloud dashboard. Lint errors block commit, push, and CI.
+  cognitive complexity). Lint errors block commit, push, and CI.
 
 ## Definition of Done (every scaffold / bug fix / feature)
 
@@ -175,5 +173,6 @@ After a bug fix or review, ask: **is this lesson reusable / will it recur?**
 
 - Game design: `docs/two-dots-game-design.md`
 - Tech stack & infra: `docs/tech-stack-and-infra.md`
+- External service setup (Sentry/PostHog): `docs/service-setup.md`
 - Team workflow design: `docs/team-workflow-design.md`
 - Genre reference: Two Dots (Playdots/Zynga) — mechanic source of truth.
