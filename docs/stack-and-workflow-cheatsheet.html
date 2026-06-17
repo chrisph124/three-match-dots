@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>three-match-dots — Cheat Sheet</title>
+<style>
+  :root {
+    --red:#ff5c5c; --blue:#4d9de0; --green:#3bb273; --yellow:#e1bc29; --purple:#7768ae;
+    --bg:#f6f7fb; --card:#ffffff; --ink:#23252b; --muted:#6b7280; --line:#e7e8ee;
+    --soft:#f0f2f8; --shadow:0 6px 20px rgba(35,37,43,.07); --radius:18px;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.5; padding:0 0 64px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1080px; margin:0 auto; padding:0 20px; }
+  header {
+    position:sticky; top:0; z-index:10; background:rgba(246,247,251,.92);
+    backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:18px 0 0;
+  }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .dots { display:flex; gap:6px; }
+  .dots span { width:14px; height:14px; border-radius:50%; display:block; }
+  .dots span:nth-child(1){background:var(--red);}
+  .dots span:nth-child(2){background:var(--blue);}
+  .dots span:nth-child(3){background:var(--green);}
+  .dots span:nth-child(4){background:var(--yellow);}
+  h1 { font-size:20px; font-weight:800; letter-spacing:-.3px; }
+  h1 small { font-weight:500; color:var(--muted); font-size:13px; margin-left:8px; }
+  .tabs { display:flex; gap:8px; margin:16px 0 0; }
+  .tab {
+    border:none; cursor:pointer; font:inherit; font-weight:700; font-size:14px;
+    padding:10px 18px; border-radius:999px 999px 0 0; background:transparent; color:var(--muted);
+    border-bottom:3px solid transparent; transition:.15s;
+  }
+  .tab:hover { color:var(--ink); }
+  .tab.active { color:var(--ink); background:var(--card); border-bottom:3px solid var(--blue); box-shadow:0 -3px 10px rgba(35,37,43,.04); }
+  main { padding-top:28px; }
+  .panel { display:none; animation:fade .25s ease; }
+  .panel.active { display:block; }
+  @keyframes fade { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+  .why {
+    background:linear-gradient(90deg,#eef4fb,#f3f0fa); border:1px solid var(--line);
+    border-radius:var(--radius); padding:14px 18px; margin-bottom:24px; font-size:14px; color:#39414f;
+  }
+  .why b { color:var(--ink); }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin:30px 0 14px; font-weight:800; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; box-shadow:var(--shadow); }
+  .card .k { display:flex; align-items:center; gap:8px; font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); font-weight:700; }
+  .card .v { font-size:15px; font-weight:700; margin-top:5px; }
+  .card .d { font-size:12.5px; color:var(--muted); margin-top:4px; }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .d-red{background:var(--red);} .d-blue{background:var(--blue);} .d-green{background:var(--green);}
+  .d-yellow{background:var(--yellow);} .d-purple{background:var(--purple);}
+  /* layered architecture */
+  .layers { display:flex; flex-direction:column; gap:8px; }
+  .layer { display:flex; align-items:center; gap:14px; background:var(--card); border:1px solid var(--line);
+    border-left:6px solid var(--line); border-radius:12px; padding:12px 16px; box-shadow:var(--shadow); }
+  .layer.core{border-left-color:var(--purple);} .layer.render{border-left-color:var(--red);}
+  .layer.input{border-left-color:var(--blue);} .layer.fx{border-left-color:var(--green);}
+  .layer.ui{border-left-color:var(--yellow);}
+  .layer .name { font-weight:800; min-width:130px; font-size:14px; }
+  .layer .desc { font-size:13px; color:var(--muted); }
+  .layer .tag { margin-left:auto; font-size:11px; font-weight:700; color:var(--muted); background:var(--soft); padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  /* pipeline strip */
+  .pipe { display:flex; flex-wrap:wrap; align-items:stretch; gap:0; }
+  .step { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; box-shadow:var(--shadow); flex:1; min-width:150px; position:relative; }
+  .step .n { font-size:11px; font-weight:800; color:#fff; background:var(--blue); width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  .step .t { font-weight:800; font-size:14px; margin-top:8px; }
+  .step .s { font-size:12px; color:var(--muted); margin-top:3px; }
+  .step .o { font-size:11.5px; color:#39414f; margin-top:8px; background:var(--soft); padding:5px 8px; border-radius:8px; }
+  .arrow { align-self:center; color:#c4c8d4; font-size:22px; padding:0 6px; font-weight:700; }
+  .callout { background:#fff7f5; border:1px solid #ffd9d0; border-radius:var(--radius); padding:16px 18px; margin-top:8px; }
+  .callout h3 { font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#d4543b; margin-bottom:10px; }
+  .callout ul { list-style:none; display:grid; gap:8px; }
+  .callout li { font-size:13px; padding-left:22px; position:relative; color:#4a3f3c; }
+  .callout li::before { content:"!"; position:absolute; left:0; top:0; width:16px; height:16px; background:var(--red); color:#fff; border-radius:50%; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .note { font-size:12.5px; color:var(--muted); margin-top:14px; }
+  code { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:12px; background:var(--soft); padding:1px 6px; border-radius:6px; color:#4a4f63; }
+  .skillpill { display:inline-block; font-family:ui-monospace,Menlo,monospace; font-size:11px; background:#eef4fb; color:#2f6fb3; border:1px solid #d6e6f5; padding:2px 8px; border-radius:999px; margin-top:8px; }
+  .twocol { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:680px){ .twocol{grid-template-columns:1fr;} .layer .tag{display:none;} }
+  footer { text-align:center; color:var(--muted); font-size:12px; margin-top:40px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <div class="dots"><span></span><span></span><span></span><span></span></div>
+      <h1>three-match-dots <small>cheat sheet · Two Dots-style · iOS&nbsp;→&nbsp;Android</small></h1>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="stack">Stack &amp; Infra</button>
+      <button class="tab" data-tab="flow">Workflow</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ===================== TAB 1: STACK & INFRA ===================== -->
+  <section class="panel active" id="stack">
+    <div class="why">
+      <b>Why React Native:</b> pure mobile, <b>iOS first then Android</b> — one TypeScript codebase ships
+      both stores via EAS. Native = 2 codebases; Unity = overkill for 2D. No web → no monorepo.
+    </div>
+
+    <h2>App Stack</h2>
+    <div class="grid">
+      <div class="card"><div class="k">Language</div><div class="v">TypeScript</div></div>
+      <div class="card"><div class="k">App shell / build</div><div class="v">Expo + EAS</div><div class="d">dev client (not Expo Go — Skia needs native)</div></div>
+      <div class="card"><div class="k">Navigation</div><div class="v">expo-router</div><div class="d">file-based · ~4 screens</div></div>
+      <div class="card"><div class="k"><span class="dot d-red"></span>Rendering</div><div class="v">react-native-skia</div><div class="d">board as one GPU canvas</div></div>
+      <div class="card"><div class="k"><span class="dot d-green"></span>Animation</div><div class="v">reanimated 3</div><div class="d">UI-thread worklets</div></div>
+      <div class="card"><div class="k"><span class="dot d-blue"></span>Gestures</div><div class="v">gesture-handler</div><div class="d">touch → grid hit-test in worklet</div></div>
+      <div class="card"><div class="k">State</div><div class="v">Zustand</div><div class="d">+ Reanimated shared values (hot loop)</div></div>
+      <div class="card"><div class="k">Persistence</div><div class="v">react-native-mmkv</div><div class="d">high score + settings</div></div>
+      <div class="card"><div class="k">Audio</div><div class="v">expo-av</div><div class="d">SFX</div></div>
+      <div class="card"><div class="k">Testing</div><div class="v">Vitest</div><div class="d">pure-TS core only</div></div>
+      <div class="card"><div class="k">Lint / format</div><div class="v">ESLint + Prettier</div><div class="d">eslint-config-expo</div></div>
+      <div class="card"><div class="k">Package manager</div><div class="v">npm</div></div>
+    </div>
+
+    <h2>Game Architecture (layered)</h2>
+    <div class="layers">
+      <div class="layer core"><span class="name">Game core</span><span class="desc">pure TS · grid, chain validation, loop detection, gravity/refill, scoring</span><span class="tag">Vitest-tested</span></div>
+      <div class="layer render"><span class="name">Render</span><span class="desc">Skia — draws dots, active link path, particles</span><span class="tag">on-device QA</span></div>
+      <div class="layer input"><span class="name">Input</span><span class="desc">Gesture Handler worklet — touch → cell → chain</span><span class="tag">on-device QA</span></div>
+      <div class="layer fx"><span class="name">Effects</span><span class="desc">Reanimated + Skia — pop, fall-bounce, burst, shake, combo</span><span class="tag">on-device QA</span></div>
+      <div class="layer ui"><span class="name">Meta UI</span><span class="desc">expo-router screens — title, HUD, game-over, settings</span><span class="tag">on-device QA</span></div>
+    </div>
+    <p class="note"><b>Performance principle:</b> keep gesture + hit-test + animation on the UI thread (worklets) to dodge the JS↔native bridge — the classic cause of RN game jank.</p>
+
+    <h2>Infrastructure</h2>
+    <div class="grid">
+      <div class="card"><div class="k">Build / release</div><div class="v">EAS Build + Submit</div><div class="d">TestFlight (iOS) → Google Play (Android)</div></div>
+      <div class="card"><div class="k">Crash reporting</div><div class="v">Sentry</div><div class="d">@sentry/react-native</div></div>
+      <div class="card"><div class="k">Analytics</div><div class="v">PostHog</div><div class="d">no IDFA → no iOS ATT prompt</div></div>
+      <div class="card"><div class="k">OTA updates</div><div class="v">expo-updates</div><div class="d"><code>eas update</code> — JS-only fixes, no review</div></div>
+      <div class="card"><div class="k">CI</div><div class="v">GitHub Actions</div><div class="d">lint + typecheck + Vitest</div></div>
+      <div class="card"><div class="k">Git hooks</div><div class="v">Husky + lint-staged</div><div class="d">pre-commit / pre-push</div></div>
+      <div class="card"><div class="k">Backend</div><div class="v">None (v1)</div><div class="d">Sentry/PostHog are SaaS, not our servers</div></div>
+    </div>
+
+    <h2>Build &amp; Release Pipeline</h2>
+    <div class="pipe">
+      <div class="step"><div class="n" style="background:var(--purple)">1</div><div class="t">Code</div><div class="s">feature branch + PR</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n" style="background:var(--blue)">2</div><div class="t">EAS Build</div><div class="s">cloud iOS / Android build</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n" style="background:var(--green)">3</div><div class="t">Beta</div><div class="s">TestFlight / Play beta</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n" style="background:var(--yellow)">4</div><div class="t">Store</div><div class="s">App Store → then Play</div></div>
+      <div class="arrow">⇲</div>
+      <div class="step"><div class="n" style="background:var(--red)">↻</div><div class="t">eas update</div><div class="s">OTA JS fix (skips review)</div></div>
+    </div>
+
+    <h2>Watch Out</h2>
+    <div class="callout">
+      <h3>Honest caveats</h3>
+      <ul>
+        <li><b>Vitest tests RN-free code only.</b> Core = unit-tested; Skia/Reanimated/gesture layers = on-device QA. "We have tests" ≠ "UI tested".</li>
+        <li><b>Analytics = compliance overhead.</b> App Store Privacy Labels + Google Play Data Safety disclosures (PostHog keeps it minimal).</li>
+        <li><b>Android low-end perf.</b> Test on a cheap real Android device before the Play release.</li>
+        <li><b>OTA is JS-only.</b> Native changes (new native module) still need a full store build.</li>
+        <li><b>Keys out of git.</b> Sentry/PostHog keys via EAS secrets / env vars.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== TAB 2: WORKFLOW ===================== -->
+  <section class="panel" id="flow">
+    <div class="why">
+      <b>One shared flow, every change.</b> Team is all on <b>Claude Code + superpowers</b> (free) —
+      <b>NOT claudekit</b>. Do not use <code>/ck:*</code> here. Setup once: <code>/plugin install superpowers@claude-plugins-official</code>
+      (auto-prompted via <code>.claude/settings.json</code>).
+    </div>
+
+    <h2>The 6-Step Flow</h2>
+    <div class="pipe">
+      <div class="step"><div class="n">1</div><div class="t">Brainstorm</div><div class="s">explore + agree design</div><div class="skillpill">superpowers:brainstorming</div><div class="o">→ design doc in <code>docs/</code></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">2</div><div class="t">Plan</div><div class="s">phase the work</div><div class="skillpill">writing-plans</div><div class="o">→ plan in <code>plans/</code></div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">3</div><div class="t">Implement</div><div class="s">build on a branch</div><div class="skillpill">executing-plans</div><div class="o">→ code on feature branch</div></div>
+    </div>
+    <div class="pipe" style="margin-top:12px;">
+      <div class="step"><div class="n">4</div><div class="t">Unit tests</div><div class="s">TDD on the core</div><div class="skillpill">test-driven-development</div><div class="o">→ Vitest (pure-TS core)</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">5</div><div class="t">Review</div><div class="s">AI + human</div><div class="skillpill">requesting-code-review</div><div class="o">→ PR + review</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">6</div><div class="t">Lesson-learned</div><div class="s">avoid repeat bugs</div><div class="skillpill">writing-skills</div><div class="o">→ skill in <code>.claude/skills/</code> (if reusable)</div></div>
+    </div>
+
+    <div class="twocol" style="margin-top:24px;">
+      <div>
+        <h2>Enforcement</h2>
+        <div class="card" style="margin-bottom:10px;"><div class="v">Husky + lint-staged</div><div class="d">pre-commit: lint staged · pre-push: typecheck + tests</div></div>
+        <div class="card" style="margin-bottom:10px;"><div class="v">GitHub Actions CI</div><div class="d">lint + typecheck + Vitest on every PR</div></div>
+        <div class="card"><div class="v">Branch protection</div><div class="d">require CI green + 1 approval → forces step 5</div></div>
+        <p class="note">Wired at the <b>Expo scaffold</b> step (no <code>package.json</code> yet).</p>
+      </div>
+      <div>
+        <h2>Lessons → Skills</h2>
+        <div class="card" style="margin-bottom:10px; border-left:6px solid var(--green);"><div class="v">Reusable / recurring?</div><div class="d">→ codify via <code>writing-skills</code> into <code>.claude/skills/</code>. Committed = auto-loads for every teammate.</div></div>
+        <div class="card" style="border-left:6px solid var(--yellow);"><div class="v">One-off?</div><div class="d">→ note in the PR / commit. Do NOT author a skill (avoids bloat).</div></div>
+        <p class="note"><b>Support skills:</b> <code>systematic-debugging</code>, <code>verification-before-completion</code>, <code>finishing-a-development-branch</code>, <code>using-git-worktrees</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>three-match-dots · self-contained cheat sheet · source of truth: <code>CLAUDE.md</code> + <code>docs/</code></footer>
+</main>
+
+<script>
+  document.querySelectorAll('.tab').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
