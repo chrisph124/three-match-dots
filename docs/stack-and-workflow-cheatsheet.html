@@ -85,6 +85,79 @@
   .twocol { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   @media (max-width:680px){ .twocol{grid-template-columns:1fr;} .layer .tag{display:none;} }
   footer { text-align:center; color:var(--muted); font-size:12px; margin-top:40px; }
+
+  /* ===================== TAB 3: STORYBOARD (scoped under #storyboard) ===================== */
+  #storyboard .sb-stage{
+    --bg:#0f1420; --panel:#161d2e; --panel2:#1d2740; --line:#2a3350; --ink:#e8edf7; --muted:#90a0bd; --accent:#4f8cff;
+    --c-core:#ffd23f; --c-render:#4f8cff; --c-input:#37d39b; --c-effects:#b06bff; --c-meta:#ff5b6e; --c-persist:#8aa0b6;
+    --d-r:#ff5b6e; --d-b:#4f8cff; --d-g:#37d39b; --d-y:#ffd23f; --d-p:#b06bff;
+    background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:18px; overflow:hidden;
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  #storyboard .sb-legend{display:flex;gap:8px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--line)}
+  #storyboard .chip{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);display:inline-flex;align-items:center;gap:6px}
+  #storyboard .chip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+  #storyboard .layout{display:flex;height:680px}
+  #storyboard nav.side{width:230px;flex:0 0 230px;border-right:1px solid var(--line);overflow:auto;padding:10px 0}
+  #storyboard nav.side .grp{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:14px 18px 6px}
+  #storyboard nav.side button{all:unset;display:flex;gap:10px;align-items:center;width:100%;padding:8px 18px;cursor:pointer;color:var(--ink);font-size:13px}
+  #storyboard nav.side button:hover{background:var(--panel)}
+  #storyboard nav.side button.active{background:var(--panel2);border-left:3px solid var(--accent);padding-left:15px}
+  #storyboard nav.side .bid{color:var(--muted);font-size:11px;min-width:30px}
+  #storyboard .sb-main{flex:1;display:flex;gap:24px;padding:22px;align-items:flex-start;flex-wrap:wrap;overflow:auto}
+  #storyboard .phone{width:300px;height:620px;flex:0 0 300px;border-radius:42px;background:#05070d;border:1px solid #2c3658;box-shadow:0 30px 70px rgba(0,0,0,.5);padding:14px;position:relative}
+  #storyboard .notch{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#05070d;border-radius:0 0 16px 16px;z-index:5}
+  #storyboard .screen{width:100%;height:100%;border-radius:30px;overflow:hidden;background:linear-gradient(180deg,#101a2e,#0c1322);position:relative;display:flex;flex-direction:column}
+  #storyboard .hud{display:flex;align-items:center;gap:12px;padding:34px 16px 10px}
+  #storyboard .hud .stat{font-size:12px;color:var(--muted)}
+  #storyboard .hud .stat b{display:block;color:var(--ink);font-size:18px;font-weight:700}
+  #storyboard .timerwrap{flex:1}
+  #storyboard .timerbar{height:10px;border-radius:999px;background:#223;overflow:hidden}
+  #storyboard .timerbar > i{display:block;height:100%;width:62%;background:linear-gradient(90deg,#37d39b,#4f8cff);transition:width .4s}
+  #storyboard .timerbar.low > i{background:linear-gradient(90deg,#ff5b6e,#ffd23f);animation:sbpulse .7s infinite}
+  @keyframes sbpulse{50%{opacity:.5}}
+  #storyboard .boardArea{flex:1;display:flex;align-items:center;justify-content:center}
+  #storyboard .board{position:relative}
+  #storyboard .dot{position:absolute;border-radius:50%;box-shadow:inset 0 -3px 6px rgba(0,0,0,.25)}
+  #storyboard .dot.r{background:var(--d-r)} #storyboard .dot.b{background:var(--d-b)} #storyboard .dot.g{background:var(--d-g)}
+  #storyboard .dot.y{background:var(--d-y)} #storyboard .dot.p{background:var(--d-p)}
+  #storyboard .dot.ring{box-shadow:0 0 0 4px rgba(255,255,255,.85), inset 0 -3px 6px rgba(0,0,0,.25)}
+  #storyboard .dot.dim{opacity:.32}
+  #storyboard svg.links{position:absolute;left:0;top:0;pointer-events:none}
+  #storyboard svg.links polyline{fill:none;stroke:#fff;stroke-width:7;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
+  #storyboard .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;border-radius:30px}
+  #storyboard .combo{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.4);font-weight:800;font-size:34px;color:#ffd23f;text-shadow:0 2px 10px rgba(0,0,0,.5);opacity:0}
+  #storyboard .menu{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:30px;text-align:center}
+  #storyboard .logo{font-size:30px;font-weight:800;letter-spacing:1px;color:var(--ink)}
+  #storyboard .logo small{display:block;font-size:12px;font-weight:500;color:var(--muted);letter-spacing:3px;margin-top:4px}
+  #storyboard .btn{background:var(--accent);color:#fff;padding:12px 30px;border-radius:14px;font-weight:700;border:none}
+  #storyboard .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+  #storyboard .best{color:var(--muted);font-size:13px}
+  #storyboard .overlay-go{position:absolute;inset:0;background:rgba(6,10,18,.84);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:30px;text-align:center}
+  #storyboard .go-title{font-size:26px;font-weight:800;color:var(--ink)}
+  #storyboard .newbest{color:#ffd23f;font-weight:800;letter-spacing:.5px}
+  #storyboard .toggle{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:220px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  #storyboard .sw{width:38px;height:22px;border-radius:999px;background:#37d39b;position:relative}
+  #storyboard .sw.off{background:#39435f}
+  #storyboard .sw::after{content:"";position:absolute;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;right:2px}
+  #storyboard .sw.off::after{left:2px;right:auto}
+  #storyboard .info{flex:1;min-width:280px;max-width:520px}
+  #storyboard .info .bcrumb{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+  #storyboard .info h2{margin:4px 0 14px;font-size:22px;text-transform:none;letter-spacing:normal;color:var(--ink);font-weight:700}
+  #storyboard .navbtns{display:flex;gap:10px;margin-bottom:18px}
+  #storyboard .navbtns button{background:var(--panel2);border:1px solid var(--line);color:var(--ink);padding:8px 16px;border-radius:10px;cursor:pointer;font-size:13px}
+  #storyboard .navbtns button:hover{border-color:var(--accent)}
+  #storyboard .navbtns .replay{margin-left:auto;background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+  #storyboard .navbtns .replay[hidden]{display:none}
+  #storyboard .rows{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  #storyboard .row{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+  #storyboard .row:last-child{border-bottom:none}
+  #storyboard .row .k{flex:0 0 110px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px;padding-top:2px}
+  #storyboard .row .v{flex:1}
+  #storyboard .maps{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  #storyboard .progress{color:var(--muted);font-size:12px;margin-top:14px}
+  #storyboard .hint{color:var(--muted);font-size:12px;margin-top:6px}
+  @media (max-width:680px){ #storyboard .layout{height:auto;flex-direction:column} #storyboard nav.side{width:100%;flex:none;display:flex;flex-wrap:wrap} }
 </style>
 </head>
 <body>
@@ -97,6 +170,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="stack">Stack &amp; Infra</button>
       <button class="tab" data-tab="flow">Workflow</button>
+      <button class="tab" data-tab="storyboard">Storyboard</button>
     </div>
   </div>
 </header>
@@ -233,6 +307,36 @@
     </div>
   </section>
 
+  <!-- ===================== TAB 3: STORYBOARD ===================== -->
+  <section class="panel" id="storyboard">
+    <div class="why">
+      <b>Interactive gameplay storyboard.</b> Click a beat in the rail or use <code>←</code> / <code>→</code> keys.
+      Each beat maps to an engine layer (Game core / Render / Input / Effects / Meta UI). Mode: endless score-attack · soft countdown timer.
+    </div>
+    <div class="sb-stage">
+      <div class="sb-legend" id="sbLegend"></div>
+      <div class="layout">
+        <nav class="side" id="sbSide"></nav>
+        <div class="sb-main">
+          <div class="phone"><div class="notch"></div><div class="screen" id="sbScreen"></div></div>
+          <div class="info">
+            <div class="bcrumb" id="sbBcrumb"></div>
+            <h2 id="sbTitle"></h2>
+            <div class="navbtns">
+              <button id="sbPrev">← Prev</button>
+              <button id="sbNext">Next →</button>
+              <button class="replay" id="sbReplay">▶ Replay animation</button>
+            </div>
+            <div class="rows" id="sbRows"></div>
+            <div class="maps" id="sbMaps"></div>
+            <div class="progress" id="sbProgress"></div>
+            <div class="hint">← / → step through beats. Animated: GP1 fill, GP4 chain, GP8 clear, GP10 loop-wipe, GP11 gravity, GP12 refill, GP13 combo.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <footer>three-match-dots · self-contained cheat sheet · source of truth: <code>CLAUDE.md</code> + <code>docs/</code></footer>
 </main>
 
@@ -245,6 +349,213 @@
       document.getElementById(btn.dataset.tab).classList.add('active');
     });
   });
+</script>
+
+<script>
+/* Storyboard tab — namespaced IIFE; ids prefixed sb*, css scoped under #storyboard */
+(function(){
+  const LAYERS={core:'Game core (pure TS)',render:'Render (Skia)',input:'Input (gesture)',effects:'Effects',meta:'Meta UI',persist:'Persist (MMKV)'};
+  const LCOL={core:'--c-core',render:'--c-render',input:'--c-input',effects:'--c-effects',meta:'--c-meta',persist:'--c-persist'};
+  const G = rows => rows.map(r => r.split('').map(c => c === '.' ? null : c));
+  const baseBoard  = G(['rbgypr','gprbyg','bypgrb','yrbpgy','pgyrbp','rbgypr']);
+  const chainBoard = G(['rbgypr','rbbgyp','rgbypg','rybprb','pgyrbp','rbgypr']);
+  const CHAIN = [[1,1],[1,2],[2,2],[3,2]];
+  const PAD=12, CELL=32, GAP=7, N=6;
+  const STEP=CELL+GAP, SIZE=PAD*2 + N*CELL + (N-1)*GAP;
+  const cx=c=>PAD + c*STEP + CELL/2, cy=r=>PAD + r*STEP + CELL/2;
+
+  const BEATS = [
+    {id:'SF1',grp:'Screen Flow',title:'Launch → Title',action:'Open the app',response:'Title shows logo, Play, Settings, and current best score.',juice:'Logo settles, buttons fade in',sfx:'Ambient loop',maps:['meta','persist'],view:{type:'screen',screen:'title'}},
+    {id:'SF2',grp:'Screen Flow',title:'Start a run',action:'Tap Play',response:'Navigate to Game; board fills, HUD shows score 0 + full timer.',juice:'Dots drop in staggered',sfx:'Whoosh',maps:['meta','render','core'],view:{type:'board',anim:'drop',hud:{score:0,best:8420,timer:100,state:'ok'},board:baseBoard}},
+    {id:'SF4',grp:'Screen Flow',title:'Run ends',action:'(timer reaches 0)',response:'Game Over: final score, best, Replay, Title.',juice:'Board freezes, dim overlay slides up',sfx:'Run-end sting',maps:['core','meta'],view:{type:'screen',screen:'gameover'}},
+    {id:'SF5',grp:'Screen Flow',title:'Replay',action:'Tap Replay',response:'New board, timer + score reset, back to Game.',juice:'Board re-fills',sfx:'Whoosh',maps:['core','meta'],view:{type:'board',anim:'drop',hud:{score:0,best:8420,timer:100,state:'ok'},board:chainBoard}},
+    {id:'SF7',grp:'Screen Flow',title:'Settings',action:'Tap Settings / Back',response:'Sound, haptics, reset-best toggles. Back returns to Title.',juice:'Slide transition',sfx:'Tap',maps:['meta','persist'],view:{type:'screen',screen:'settings'}},
+    {id:'GP1',grp:'Gameplay',title:'Board fill',action:'—',response:'6×6 grid spawns random-color dots.',juice:'Dots drop + settle bounce',sfx:'Soft taps',maps:['core','render','effects'],view:{type:'board',anim:'drop',hud:{score:0,best:8420,timer:100,state:'ok'},board:baseBoard}},
+    {id:'GP2',grp:'Gameplay',title:'Idle / timer',action:'—',response:'HUD shows score, best, and the draining timer.',juice:'Timer bar drains smoothly',sfx:'Ambient',maps:['meta','core'],view:{type:'board',hud:{score:1240,best:8420,timer:62,state:'ok'},board:baseBoard}},
+    {id:'GP3',grp:'Gameplay',title:'Chain start',action:'Press a dot',response:'Dot highlights + scales; chain = [cell].',juice:'Ring + scale-up',sfx:'Tap-blip',maps:['input','effects'],view:{type:'board',hud:{score:1240,best:8420,timer:60,state:'ok'},board:chainBoard,chain:[[1,1]]}},
+    {id:'GP4',grp:'Gameplay',title:'Extend chain',action:'Drag to adjacent same-color dot',response:'Cell appended; link path drawn between centers.',juice:'Link animates in; rising pitch',sfx:'Blip (pitch ↑)',maps:['input','core','render'],view:{type:'board',anim:'chain',hud:{score:1240,best:8420,timer:60,state:'ok'},board:chainBoard,chain:CHAIN}},
+    {id:'GP6',grp:'Gameplay',title:'Invalid move',action:'Drag to diagonal / different color',response:'Cell rejected; no link added.',juice:'Brief shake; muted tint',sfx:'Dull thud',maps:['input','core','effects'],view:{type:'board',anim:'invalid',hud:{score:1240,best:8420,timer:58,state:'ok'},board:chainBoard,chain:[[1,1],[1,2]],invalid:[2,1]}},
+    {id:'GP8',grp:'Gameplay',title:'Clear (chain ≥ 2)',action:'Release',response:'Chained dots pop; score += f(chain length).',juice:'Scale-out + particle burst',sfx:'Pop + chime',maps:['core','effects','render'],view:{type:'board',anim:'pop',hud:{score:1560,best:8420,timer:64,state:'ok'},board:chainBoard,chain:CHAIN}},
+    {id:'GP10',grp:'Gameplay',title:'Loop clear',action:'Close a loop of one color',response:'EVERY dot of that color on the board clears.',juice:'Screen flash + shake; mass burst',sfx:'Boom + sparkle',maps:['core','effects','render'],view:{type:'board',anim:'wipe',color:'g',hud:{score:3100,best:8420,timer:78,state:'ok'},board:baseBoard}},
+    {id:'GP11',grp:'Gameplay',title:'Gravity',action:'(auto, after clear)',response:'Survivors fall to fill gaps.',juice:'Fall + bounce ease',sfx:'Falling thuds',maps:['core','effects','render'],view:{type:'board',anim:'drop',hud:{score:3100,best:8420,timer:78,state:'ok'},board:baseBoard}},
+    {id:'GP12',grp:'Gameplay',title:'Refill',action:'(auto, after gravity)',response:'New dots drop from the top into empty cells.',juice:'Staggered drop-in',sfx:'Soft taps',maps:['core','render','effects'],view:{type:'board',anim:'dropTop',dropRows:2,hud:{score:3100,best:8420,timer:78,state:'ok'},board:baseBoard}},
+    {id:'GP13',grp:'Gameplay',title:'Combo',action:'Refill makes another clear',response:'Combo multiplier rises; bonus points.',juice:'Combo counter pop + flair',sfx:'Combo chime (rising)',maps:['core','effects','meta'],view:{type:'board',anim:'combo',hud:{score:4280,best:8420,timer:82,state:'ok'},board:chainBoard,chain:CHAIN,combo:'x3'}},
+    {id:'GP14',grp:'Gameplay',title:'Timer bonus',action:'(auto, on each clear)',response:'Each clear adds time to the countdown.',juice:'Timer bar pulses green, ticks up',sfx:'Up-chime',maps:['core','meta','effects'],view:{type:'board',hud:{score:4280,best:8420,timer:88,state:'ok'},board:baseBoard}},
+    {id:'GP15',grp:'Gameplay',title:'Low time',action:'Timer near 0',response:'HUD timer turns red + pulses.',juice:'Red pulse, vignette',sfx:'Tense beep loop',maps:['meta','effects'],view:{type:'board',hud:{score:6900,best:8420,timer:11,state:'low'},board:baseBoard}},
+    {id:'GP17',grp:'Gameplay',title:'New best',action:'Final score > stored best',response:'"New Best!" celebration; persist new best.',juice:'Confetti / glow on score',sfx:'Fanfare',maps:['core','persist','effects','meta'],view:{type:'screen',screen:'gameover',newbest:true}},
+  ];
+
+  const screenEl=document.getElementById('sbScreen');
+  let dotEls={};
+  function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+
+  function buildBoard(view){
+    const wrap=el('div','boardArea');
+    const board=el('div','board');
+    board.style.width=SIZE+'px';board.style.height=SIZE+'px';
+    dotEls={};
+    const g=view.board;
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+      const col=g[r][c]; if(!col)continue;
+      const d=el('div','dot '+col);
+      d.style.left=(PAD+c*STEP)+'px';d.style.top=(PAD+r*STEP)+'px';
+      d.style.width=CELL+'px';d.style.height=CELL+'px';
+      dotEls[r+'-'+c]=d;board.appendChild(d);
+    }
+    if(view.chain){
+      view.chain.forEach(([r,c])=>{const d=dotEls[r+'-'+c];if(d)d.classList.add('ring');});
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.setAttribute('class','links');svg.setAttribute('width',SIZE);svg.setAttribute('height',SIZE);
+      const pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+      pl.setAttribute('points',view.chain.map(([r,c])=>cx(c)+','+cy(r)).join(' '));
+      svg.appendChild(pl);board.appendChild(svg);view._poly=pl;
+    }
+    const flash=el('div','flash');board.appendChild(flash);view._flash=flash;
+    if(view.combo){const cb=el('div','combo',view.combo);board.appendChild(cb);view._combo=cb;}
+    wrap.appendChild(board);view._board=board;return wrap;
+  }
+
+  function hudEl(h){
+    const hud=el('div','hud');
+    hud.appendChild(el('div','stat','SCORE<b>'+h.score.toLocaleString()+'</b>'));
+    const tw=el('div','timerwrap');
+    const bar=el('div','timerbar'+(h.state==='low'?' low':''));
+    bar.appendChild(el('i'));bar.querySelector('i').style.width=h.timer+'%';
+    tw.appendChild(el('div','stat','TIME'));tw.appendChild(bar);hud.appendChild(tw);
+    hud.appendChild(el('div','stat','BEST<b>'+h.best.toLocaleString()+'</b>'));
+    return hud;
+  }
+
+  function buildScreen(view){
+    const frag=document.createDocumentFragment();
+    if(view.screen==='title'){
+      const m=el('div','menu');
+      m.appendChild(el('div','logo','DOTS<small>THREE · MATCH · DOTS</small>'));
+      m.appendChild(el('div','best','Best: 8,420'));
+      m.appendChild(el('button','btn','Play'));
+      m.appendChild(el('button','btn ghost','Settings'));
+      frag.appendChild(m);
+    }else if(view.screen==='settings'){
+      const m=el('div','menu');
+      m.appendChild(el('div','logo','Settings'));
+      m.appendChild(tog('Sound',true));m.appendChild(tog('Haptics',true));m.appendChild(tog('Reset best',false));
+      m.appendChild(el('button','btn ghost','Back'));
+      frag.appendChild(m);
+    }else if(view.screen==='gameover'){
+      const ba=el('div','boardArea');const b=el('div','board');
+      b.style.width=SIZE+'px';b.style.height=SIZE+'px';b.style.opacity='.4';
+      baseBoard.forEach((row,r)=>row.forEach((col,c)=>{if(!col)return;const d=el('div','dot '+col);
+        d.style.left=(PAD+c*STEP)+'px';d.style.top=(PAD+r*STEP)+'px';d.style.width=CELL+'px';d.style.height=CELL+'px';b.appendChild(d);}));
+      ba.appendChild(b);
+      const ov=el('div','overlay-go');
+      ov.appendChild(el('div','go-title','Game Over'));
+      if(view.newbest)ov.appendChild(el('div','newbest','★ NEW BEST ★'));
+      ov.appendChild(el('div','logo',(view.newbest?'9,360':'4,180')));
+      ov.appendChild(el('div','best','Best: '+(view.newbest?'9,360':'8,420')));
+      ov.appendChild(el('button','btn','Replay'));
+      ov.appendChild(el('button','btn ghost','Title'));
+      frag.appendChild(ba);frag.appendChild(ov);
+    }
+    return frag;
+  }
+  function tog(label,on){const t=el('div','toggle');t.appendChild(el('span',null,label));t.appendChild(el('div','sw'+(on?'':' off')));return t;}
+
+  function render(view){
+    screenEl.innerHTML='';
+    if(view.type==='board'){screenEl.appendChild(hudEl(view.hud));screenEl.appendChild(buildBoard(view));}
+    else{screenEl.appendChild(buildScreen(view));}
+  }
+
+  const BOUNCE='cubic-bezier(.34,1.56,.64,1)';
+  function burst(x,y,n,colors){
+    const layer=document.querySelector('#sbScreen .board');if(!layer)return;
+    for(let i=0;i<n;i++){
+      const p=el('div');const ang=(Math.PI*2*i)/n+0.3;const dist=30+(i%4)*12;
+      p.style.cssText='position:absolute;width:9px;height:9px;border-radius:50%;left:'+x+'px;top:'+y+'px;pointer-events:none;background:'+colors[i%colors.length];
+      layer.appendChild(p);
+      p.animate([{transform:'translate(0,0) scale(1)',opacity:1},
+        {transform:'translate('+Math.cos(ang)*dist+'px,'+Math.sin(ang)*dist+'px) scale(0)',opacity:0}],
+        {duration:520,easing:'ease-out'}).onfinish=()=>p.remove();
+    }
+  }
+  function playAnim(view){
+    if(view.type!=='board'||!view.anim)return;
+    const cv=getComputedStyle(document.querySelector('#storyboard .sb-stage'));
+    if(view.anim==='drop'||view.anim==='dropTop'){
+      Object.entries(dotEls).forEach(([k,d])=>{
+        const r=+k.split('-')[0];
+        if(view.anim==='dropTop'&&r>=(view.dropRows||2))return;
+        d.animate([{transform:'translateY(-'+(SIZE)+'px)'},{transform:'translateY(0)'}],
+          {duration:560,delay:(view.anim==='dropTop'?r:(N-r))*60,easing:BOUNCE,fill:'backwards'});
+      });
+    }else if(view.anim==='chain'){
+      if(view._poly){const len=view._poly.getTotalLength();view._poly.style.strokeDasharray=len;view._poly.style.strokeDashoffset=len;
+        view._poly.animate([{strokeDashoffset:len},{strokeDashoffset:0}],{duration:600,easing:'ease-out',fill:'forwards'});}
+      view.chain.forEach(([r,c],i)=>{const d=dotEls[r+'-'+c];if(d)d.animate([{transform:'scale(1)'},{transform:'scale(1.25)'},{transform:'scale(1)'}],{duration:420,delay:i*120,easing:'ease-out'});});
+    }else if(view.anim==='pop'){
+      view.chain.forEach(([r,c],i)=>{const d=dotEls[r+'-'+c];if(!d)return;
+        setTimeout(()=>{const x=parseFloat(d.style.left)+CELL/2,y=parseFloat(d.style.top)+CELL/2;
+          burst(x,y,8,[cv.getPropertyValue('--d-b')]);
+          d.animate([{transform:'scale(1)',opacity:1},{transform:'scale(1.35)',opacity:1},{transform:'scale(0)',opacity:0}],{duration:420,easing:'ease-in',fill:'forwards'});
+        },i*90);});
+    }else if(view.anim==='wipe'){
+      const targets=[];Object.entries(dotEls).forEach(([k,d])=>{const a=k.split('-').map(Number);if(view.board[a[0]][a[1]]===view.color)targets.push(d);else d.classList.add('dim');});
+      if(view._flash)view._flash.animate([{opacity:0},{opacity:.7},{opacity:0}],{duration:420,easing:'ease-out'});
+      if(view._board)view._board.animate([{transform:'translate(0,0)'},{transform:'translate(-4px,3px)'},{transform:'translate(4px,-2px)'},{transform:'translate(0,0)'}],{duration:300,iterations:2});
+      targets.forEach((d,i)=>setTimeout(()=>{const x=parseFloat(d.style.left)+CELL/2,y=parseFloat(d.style.top)+CELL/2;
+        burst(x,y,6,[cv.getPropertyValue('--d-g')]);
+        d.animate([{transform:'scale(1)',opacity:1},{transform:'scale(1.4)',opacity:1,filter:'brightness(2)'},{transform:'scale(0)',opacity:0}],{duration:380,easing:'ease-in',fill:'forwards'});},i*70));
+    }else if(view.anim==='invalid'){
+      const d=dotEls[view.invalid[0]+'-'+view.invalid[1]];
+      if(d)d.animate([{transform:'translateX(0)'},{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'translateX(-4px)'},{transform:'translateX(0)'}],{duration:320});
+    }else if(view.anim==='combo'){
+      view.chain.forEach(([r,c],i)=>{const d=dotEls[r+'-'+c];if(d)setTimeout(()=>{const x=parseFloat(d.style.left)+CELL/2,y=parseFloat(d.style.top)+CELL/2;burst(x,y,8,[cv.getPropertyValue('--d-b')]);d.animate([{opacity:1},{transform:'scale(0)',opacity:0}],{duration:360,fill:'forwards'});},i*80);});
+      if(view._combo)view._combo.animate([{transform:'translate(-50%,-50%) scale(.4)',opacity:0},{transform:'translate(-50%,-50%) scale(1.2)',opacity:1},{transform:'translate(-50%,-50%) scale(1)',opacity:1}],{duration:600,delay:200,easing:BOUNCE,fill:'forwards'});
+    }
+  }
+
+  let cur=0;
+  const sideEl=document.getElementById('sbSide');
+  function buildSide(){
+    let lastGrp='';
+    BEATS.forEach((b,i)=>{
+      if(b.grp!==lastGrp){sideEl.appendChild(el('div','grp',b.grp));lastGrp=b.grp;}
+      const btn=el('button');btn.dataset.i=i;
+      btn.appendChild(el('span','bid',b.id));btn.appendChild(el('span',null,b.title));
+      btn.onclick=()=>show(i);sideEl.appendChild(btn);
+    });
+  }
+  function buildLegend(){
+    const lg=document.getElementById('sbLegend');
+    Object.keys(LAYERS).forEach(k=>{const c=el('span','chip');c.innerHTML='<i style="background:var('+LCOL[k]+')"></i>'+LAYERS[k];lg.appendChild(c);});
+  }
+  function show(i){
+    cur=(i+BEATS.length)%BEATS.length;const b=BEATS[cur];
+    render(b.view);
+    document.getElementById('sbBcrumb').textContent=b.grp+' · '+b.id;
+    document.getElementById('sbTitle').textContent=b.title;
+    const rows=document.getElementById('sbRows');rows.innerHTML='';
+    const add=(k,v)=>{const row=el('div','row');row.appendChild(el('div','k',k));row.appendChild(el('div','v',v));rows.appendChild(row);};
+    add('Action',b.action);add('Response',b.response);add('Juice / FX',b.juice);add('SFX',b.sfx);
+    const maps=document.getElementById('sbMaps');maps.innerHTML='';
+    b.maps.forEach(k=>{const c=el('span','chip');c.innerHTML='<i style="background:var('+LCOL[k]+')"></i>'+LAYERS[k];maps.appendChild(c);});
+    document.getElementById('sbProgress').textContent='Beat '+(cur+1)+' of '+BEATS.length;
+    const rep=document.getElementById('sbReplay');rep.hidden=!(b.view.type==='board'&&b.view.anim);
+    [...sideEl.querySelectorAll('button')].forEach(x=>x.classList.toggle('active',+x.dataset.i===cur));
+    requestAnimationFrame(()=>playAnim(b.view));
+  }
+  document.getElementById('sbPrev').onclick=()=>show(cur-1);
+  document.getElementById('sbNext').onclick=()=>show(cur+1);
+  document.getElementById('sbReplay').onclick=()=>playAnim(BEATS[cur].view);
+  document.addEventListener('keydown',e=>{
+    if(!document.getElementById('storyboard').classList.contains('active'))return;
+    if(e.key==='ArrowLeft')show(cur-1);if(e.key==='ArrowRight')show(cur+1);
+  });
+  const sbTab=document.querySelector('[data-tab="storyboard"]');
+  if(sbTab)sbTab.addEventListener('click',()=>requestAnimationFrame(()=>show(cur)));
+
+  buildLegend();buildSide();show(0);
+})();
 </script>
 </body>
 </html>
