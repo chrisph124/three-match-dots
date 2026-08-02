@@ -19,20 +19,20 @@ Game design doc: `docs/two-dots-game-design.md`. Team workflow design: `docs/tea
 **Why React Native:** pure mobile, **iOS first then Android** — one TS codebase ships both stores via EAS.
 Native (Swift+Kotlin) = 2 codebases; Unity = overkill for simple 2D. No web version → no monorepo.
 
-| Concern | Choice |
-|---------|--------|
-| Language | TypeScript |
+| Concern           | Choice                                                                                                               |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Language          | TypeScript                                                                                                           |
 | App shell / build | **Expo** (dev client — NOT Expo Go, because Skia needs native code) + **EAS Build/Submit** (iOS first, then Android) |
-| Navigation | **`expo-router`** — file-based; ~4 screens (title / game / game-over / settings) |
-| Rendering | **`@shopify/react-native-skia`** — board drawn as one GPU canvas (dots, link path, particles) |
-| Animation | **`react-native-reanimated`** v3 — falling/spring/clear tweens in UI-thread worklets |
-| Gestures | **`react-native-gesture-handler`** — pan gesture; touch→grid hit-test + chain logic in worklet |
-| State | **Zustand** (UI/meta: HUD, settings); board sim state in Reanimated shared values for the hot loop |
-| Persistence | **`react-native-mmkv`** — high score + settings. No backend in v1. |
-| Audio | **`expo-av`** — SFX |
-| Testing | **Vitest** — unit-tests the pure-TS core ONLY (see Development Rules) |
-| Lint / format | **ESLint** (`eslint-config-expo`) + **Prettier** |
-| Package manager | **npm** |
+| Navigation        | **`expo-router`** — file-based; ~4 screens (title / game / game-over / settings)                                     |
+| Rendering         | **`@shopify/react-native-skia`** — board drawn as one GPU canvas (dots, link path, particles)                        |
+| Animation         | **`react-native-reanimated`** v3 — falling/spring/clear tweens in UI-thread worklets                                 |
+| Gestures          | **`react-native-gesture-handler`** — pan gesture; touch→grid hit-test + chain logic in worklet                       |
+| State             | **Zustand** (UI/meta: HUD, settings); board sim state in Reanimated shared values for the hot loop                   |
+| Persistence       | **`react-native-mmkv`** — high score + settings. No backend in v1.                                                   |
+| Audio             | **`expo-av`** — SFX                                                                                                  |
+| Testing           | **Vitest** — unit-tests the pure-TS core ONLY (see Development Rules)                                                |
+| Lint / format     | **ESLint** (`eslint-config-expo`) + **Prettier**                                                                     |
+| Package manager   | **npm**                                                                                                              |
 
 **Performance principle:** keep gesture + hit-test + animation on the UI thread (worklets) to avoid
 the JS↔native bridge — that bridge is the classic cause of RN game jank. Entity count is tiny
@@ -40,17 +40,17 @@ the JS↔native bridge — that bridge is the classic cause of RN game jank. Ent
 
 ## Infrastructure (decided — wired at scaffold)
 
-| Area | Choice |
-|------|--------|
-| Build / release | **EAS Build + EAS Submit** → TestFlight (iOS), Google Play (Android phase) |
-| Crash reporting | **Sentry** (`@sentry/react-native`) |
-| Analytics | **PostHog** — privacy-friendly; no IDFA → avoids iOS ATT prompt; EU-hosting option |
-| OTA updates | **`expo-updates`** (`eas update`) — push JS-only fixes without a store review |
-| Code quality | **`eslint-plugin-sonarjs`** (SonarLint rules) — local + CI, free. No SonarCloud SaaS (redundant). |
-| Security scan | **CodeQL** (`.github/workflows/codeql.yml`) + **Dependabot** (`.github/dependabot.yml`) — active, free on public repo |
-| CI | **GitHub Actions**: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest core (+ coverage) — ONE workflow at scaffold |
-| Git hooks | **Husky + lint-staged** (wired at scaffold) |
-| Backend | **None for v1** — Sentry/PostHog are 3rd-party SaaS, not our servers |
+| Area            | Choice                                                                                                                      |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Build / release | **EAS Build + EAS Submit** → TestFlight (iOS), Google Play (Android phase)                                                  |
+| Crash reporting | **Sentry** (`@sentry/react-native`)                                                                                         |
+| Analytics       | **PostHog** — privacy-friendly; no IDFA → avoids iOS ATT prompt; EU-hosting option                                          |
+| OTA updates     | **`expo-updates`** (`eas update`) — push JS-only fixes without a store review                                               |
+| Code quality    | **`eslint-plugin-sonarjs`** (SonarLint rules) — local + CI, free. No SonarCloud SaaS (redundant).                           |
+| Security scan   | **CodeQL** (`.github/workflows/codeql.yml`) + **Dependabot** (`.github/dependabot.yml`) — active, free on public repo       |
+| CI              | **GitHub Actions**: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest core (+ coverage) — ONE workflow at scaffold |
+| Git hooks       | **Husky + lint-staged** (wired at scaffold)                                                                                 |
+| Backend         | **None for v1** — Sentry/PostHog are 3rd-party SaaS, not our servers                                                        |
 
 **Privacy/compliance:** analytics requires App Store Privacy Nutrition Labels + Google Play Data Safety
 disclosures (PostHog keeps this minimal). Keep Sentry/PostHog keys OUT of git (use EAS secrets / env).
@@ -77,13 +77,15 @@ online/leaderboards, accounts/cloud-save, Android. Architecture must not block t
 
 ## Commands
 
-> Not yet scaffolded. Populate once `package.json` exists. Expected (Expo):
-- `npx expo start --dev-client` — run dev client
-- `npx expo run:ios` / `npx expo run:android` — local build/run
-- `npm test` — Vitest (pure-TS core)
-- `eas build --platform ios|android` — cloud build
-- `eas submit --platform ios|android` — submit to TestFlight / Google Play
-- `eas update` — push an OTA (JS-only) update
+- `npm start` — start Metro for the dev client (`expo start --dev-client`)
+- `npm run ios` — build + run the dev client on iOS (`expo run:ios`)
+- `npm run android` — build + run the dev client on Android
+- `npm run lint` — ESLint (incl. sonarjs, no-any)
+- `npm run typecheck` — `tsc --noEmit` (strict)
+- `npm test` — Vitest (pure-TS core in `src/core/`)
+- `npm run test:watch` — Vitest watch mode
+
+> EAS build/submit + OTA (`eas update`) are deferred to the release round (see `docs/expo-scaffold-design.md`).
 
 ## Development Rules
 
@@ -109,6 +111,7 @@ online/leaderboards, accounts/cloud-save, Android. Architecture must not block t
 ## Definition of Done (every scaffold / bug fix / feature)
 
 A change is NOT done until ALL hold:
+
 1. **Unit tests** — check for existing tests covering the touched core logic; create/update if missing.
    - **Bug fix → regression test FIRST**: write a failing test that reproduces the bug (red), then fix (green),
      so it can never silently return. Pairs with `superpowers:systematic-debugging`.
@@ -129,14 +132,14 @@ This team uses **superpowers** (free) — NOT claudekit (`/ck:*`). Do not use `/
 
 **The flow — every change goes through all 6 steps:**
 
-| # | Step | Superpowers skill to invoke | Output |
-|---|------|-----------------------------|--------|
-| 1 | Brainstorm | `superpowers:brainstorming` | design doc in `docs/` |
-| 2 | Plan | `superpowers:writing-plans` | plan in `plans/` |
-| 3 | Implement | `superpowers:executing-plans` (+ `subagent-driven-development`) | code on a feature branch |
-| 4 | Unit tests | `superpowers:test-driven-development` | tests written with/before code |
-| 5 | Review | `superpowers:requesting-code-review` → `receiving-code-review` | PR + review (AI + human) |
-| 6 | Lesson-learned | `superpowers:writing-skills` | a committed skill in `.claude/skills/` (only if reusable) |
+| #   | Step           | Superpowers skill to invoke                                     | Output                                                    |
+| --- | -------------- | --------------------------------------------------------------- | --------------------------------------------------------- |
+| 1   | Brainstorm     | `superpowers:brainstorming`                                     | design doc in `docs/`                                     |
+| 2   | Plan           | `superpowers:writing-plans`                                     | plan in `plans/`                                          |
+| 3   | Implement      | `superpowers:executing-plans` (+ `subagent-driven-development`) | code on a feature branch                                  |
+| 4   | Unit tests     | `superpowers:test-driven-development`                           | tests written with/before code                            |
+| 5   | Review         | `superpowers:requesting-code-review` → `receiving-code-review`  | PR + review (AI + human)                                  |
+| 6   | Lesson-learned | `superpowers:writing-skills`                                    | a committed skill in `.claude/skills/` (only if reusable) |
 
 Support skills: `systematic-debugging` (bugs), `verification-before-completion` &
 `finishing-a-development-branch` (close-out), `using-git-worktrees` (parallel work).
@@ -156,6 +159,7 @@ alternative: `/plugin marketplace add obra/superpowers` then install — not the
 ### Lessons-learned (step 6) — avoid repeat bugs
 
 After a bug fix or review, ask: **is this lesson reusable / will it recur?**
+
 - **Yes** → codify it as a project skill via `superpowers:writing-skills`, committed to
   `.claude/skills/<lesson-slug>/SKILL.md`. Committed skills auto-load for every teammate. See
   `.claude/skills/README.md` for the template.
