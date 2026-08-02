@@ -6,12 +6,13 @@ module.exports = [
   ...expoConfig,
   sonarjs.configs.recommended,
   {
+    files: ['**/*.ts', '**/*.tsx'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
     },
   },
   prettier,
   {
-    ignores: ['dist/*', 'node_modules/*', '.expo/*', 'babel.config.js'],
+    ignores: ['dist/**', 'node_modules/**', '.expo/**'],
   },
 ];
