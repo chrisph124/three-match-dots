@@ -11,28 +11,31 @@ iOS-first, built with **React Native**.
 chains of ≥2 clear on release; closing a 2×2 loop clears EVERY dot of that color on the board;
 survivors fall via gravity and new dots spawn from the top.
 
-**Current status:** greenfield — app not yet scaffolded. Game design approved via brainstorm.
-Game design doc: `docs/two-dots-game-design.md`. Team workflow design: `docs/team-workflow-design.md`.
+**Current status:** the Expo dev-client app is scaffolded — expo-router routes at `src/app/`,
+an RN-free game core at `src/core/` with Vitest, ESLint + Prettier, Husky hooks, GitHub Actions
+CI, and a Skia canvas all in place. The game logic itself (chain/loop/gravity/scoring) is not yet
+built. Game design doc: `docs/two-dots-game-design.md`. Team workflow design:
+`docs/team-workflow-design.md`.
 
-## Tech Stack (decided — not yet scaffolded)
+## Tech Stack (decided)
 
 **Why React Native:** pure mobile, **iOS first then Android** — one TS codebase ships both stores via EAS.
 Native (Swift+Kotlin) = 2 codebases; Unity = overkill for simple 2D. No web version → no monorepo.
 
-| Concern           | Choice                                                                                                               |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Language          | TypeScript                                                                                                           |
-| App shell / build | **Expo** (dev client — NOT Expo Go, because Skia needs native code) + **EAS Build/Submit** (iOS first, then Android) |
-| Navigation        | **`expo-router`** — file-based; ~4 screens (title / game / game-over / settings)                                     |
-| Rendering         | **`@shopify/react-native-skia`** — board drawn as one GPU canvas (dots, link path, particles)                        |
-| Animation         | **`react-native-reanimated`** v3 — falling/spring/clear tweens in UI-thread worklets                                 |
-| Gestures          | **`react-native-gesture-handler`** — pan gesture; touch→grid hit-test + chain logic in worklet                       |
-| State             | **Zustand** (UI/meta: HUD, settings); board sim state in Reanimated shared values for the hot loop                   |
-| Persistence       | **`react-native-mmkv`** — high score + settings. No backend in v1.                                                   |
-| Audio             | **`expo-av`** — SFX                                                                                                  |
-| Testing           | **Vitest** — unit-tests the pure-TS core ONLY (see Development Rules)                                                |
-| Lint / format     | **ESLint** (`eslint-config-expo`) + **Prettier**                                                                     |
-| Package manager   | **npm**                                                                                                              |
+| Concern           | Choice                                                                                                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Language          | TypeScript                                                                                                                                                            |
+| App shell / build | **Expo** (dev client — NOT Expo Go, because Skia needs native code) + **EAS Build/Submit** (iOS first, then Android)                                                  |
+| Navigation        | **`expo-router`** — file-based; ~4 screens (title / game / game-over / settings)                                                                                      |
+| Rendering         | **`@shopify/react-native-skia`** — board drawn as one GPU canvas (dots, link path, particles)                                                                         |
+| Animation         | **`react-native-reanimated`** v4 (worklets plugin auto-wired by `babel-preset-expo`, no `babel.config.js` needed) — falling/spring/clear tweens in UI-thread worklets |
+| Gestures          | **`react-native-gesture-handler`** — pan gesture; touch→grid hit-test + chain logic in worklet                                                                        |
+| State             | **Zustand** (UI/meta: HUD, settings); board sim state in Reanimated shared values for the hot loop                                                                    |
+| Persistence       | **`react-native-mmkv`** — high score + settings. No backend in v1.                                                                                                    |
+| Audio             | **`expo-av`** — SFX                                                                                                                                                   |
+| Testing           | **Vitest** — unit-tests the pure-TS core ONLY (see Development Rules)                                                                                                 |
+| Lint / format     | **ESLint** (`eslint-config-expo`) + **Prettier**                                                                                                                      |
+| Package manager   | **npm**                                                                                                                                                               |
 
 **Performance principle:** keep gesture + hit-test + animation on the UI thread (worklets) to avoid
 the JS↔native bridge — that bridge is the classic cause of RN game jank. Entity count is tiny
@@ -40,17 +43,17 @@ the JS↔native bridge — that bridge is the classic cause of RN game jank. Ent
 
 ## Infrastructure (decided — wired at scaffold)
 
-| Area            | Choice                                                                                                                      |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Build / release | **EAS Build + EAS Submit** → TestFlight (iOS), Google Play (Android phase)                                                  |
-| Crash reporting | **Sentry** (`@sentry/react-native`)                                                                                         |
-| Analytics       | **PostHog** — privacy-friendly; no IDFA → avoids iOS ATT prompt; EU-hosting option                                          |
-| OTA updates     | **`expo-updates`** (`eas update`) — push JS-only fixes without a store review                                               |
-| Code quality    | **`eslint-plugin-sonarjs`** (SonarLint rules) — local + CI, free. No SonarCloud SaaS (redundant).                           |
-| Security scan   | **CodeQL** (`.github/workflows/codeql.yml`) + **Dependabot** (`.github/dependabot.yml`) — active, free on public repo       |
-| CI              | **GitHub Actions**: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest core (+ coverage) — ONE workflow at scaffold |
-| Git hooks       | **Husky + lint-staged** (wired at scaffold)                                                                                 |
-| Backend         | **None for v1** — Sentry/PostHog are 3rd-party SaaS, not our servers                                                        |
+| Area            | Choice                                                                                                                |
+| --------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Build / release | **EAS Build + EAS Submit** → TestFlight (iOS), Google Play (Android phase)                                            |
+| Crash reporting | **Sentry** (`@sentry/react-native`)                                                                                   |
+| Analytics       | **PostHog** — privacy-friendly; no IDFA → avoids iOS ATT prompt; EU-hosting option                                    |
+| OTA updates     | **`expo-updates`** (`eas update`) — push JS-only fixes without a store review                                         |
+| Code quality    | **`eslint-plugin-sonarjs`** (SonarLint rules) — local + CI, free. No SonarCloud SaaS (redundant).                     |
+| Security scan   | **CodeQL** (`.github/workflows/codeql.yml`) + **Dependabot** (`.github/dependabot.yml`) — active, free on public repo |
+| CI              | **GitHub Actions**: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest core — ONE workflow at scaffold        |
+| Git hooks       | **Husky + lint-staged** (wired at scaffold)                                                                           |
+| Backend         | **None for v1** — Sentry/PostHog are 3rd-party SaaS, not our servers                                                  |
 
 **Privacy/compliance:** analytics requires App Store Privacy Nutrition Labels + Google Play Data Safety
 disclosures (PostHog keeps this minimal). Keep Sentry/PostHog keys OUT of git (use EAS secrets / env).
