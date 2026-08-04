@@ -2988,7 +2988,7 @@ export function BoardCanvas({ board, layout }: BoardCanvasProps) {
 ```tsx
 import { Link } from 'expo-router';
 import { useMemo } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { DEFAULT_CONFIG } from '../core/config';
 import { newGame } from '../core/game';
 import { BoardCanvas } from '../render/board-canvas';
@@ -3546,7 +3546,7 @@ Replace the file with:
 import { Link } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { GestureDetector } from 'react-native-gesture-handler';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { DEFAULT_CONFIG } from '../core/config';
 import { newGame } from '../core/game';
 import { useBoardAnimation } from '../effects/use-board-animation';
@@ -3682,13 +3682,21 @@ type Options = {
   readonly layout: BoardLayout;
   readonly anim: BoardAnimation;
   readonly chainState: ChainState;
-  readonly initialScore: number;
-  readonly onScoreChange: (score: number) => void;
+  /** Score to resume from. Task 20 supplies this from storage. */
+  readonly initialScore?: number;
+  /** Called whenever the score changes. Task 20 supplies the persister. */
+  readonly onScoreChange?: (score: number) => void;
 };
 
 const CELL_COUNT = DEFAULT_CONFIG.rows * DEFAULT_CONFIG.cols;
 
-export function useGameState({ layout, anim, chainState, initialScore, onScoreChange }: Options) {
+export function useGameState({
+  layout,
+  anim,
+  chainState,
+  initialScore = 0,
+  onScoreChange,
+}: Options) {
   const [state, setState] = useState<GameState>(() => ({
     ...newGame(DEFAULT_CONFIG, Date.now() >>> 0),
     score: initialScore,
@@ -3703,7 +3711,7 @@ export function useGameState({ layout, anim, chainState, initialScore, onScoreCh
       latest.current = next;
       setState(next);
       chainState.board.value = [...next.board];
-      onScoreChange(next.score);
+      onScoreChange?.(next.score);
     },
     [chainState, onScoreChange],
   );
@@ -3773,7 +3781,7 @@ Replace the file with:
 
 ```tsx
 import { Link } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { DEFAULT_CONFIG } from '../core/config';
@@ -3795,8 +3803,7 @@ export default function GameScreen() {
   );
   const anim = useBoardAnimation(CELL_COUNT);
   const chainState = useChainState(new Array<number>(CELL_COUNT).fill(0));
-  const noop = useCallback(() => {}, []);
-  const game = useGameState({ layout, anim, chainState, initialScore: 0, onScoreChange: noop });
+  const game = useGameState({ layout, anim, chainState });
 
   const gesture = useBoardGesture({
     state: chainState,
@@ -3938,7 +3945,7 @@ Add the import:
 import { readScore, writeScore } from '../meta/score-storage';
 ```
 
-Replace the `noop` callback and the `useGameState` call with:
+Replace the `useGameState` call with:
 
 ```tsx
 const initialScore = useMemo(() => readScore(), []);
