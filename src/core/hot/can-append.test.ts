@@ -35,7 +35,9 @@ describe('canAppend', () => {
   });
 
   it('rejects a colour mismatch', () => {
-    expect(canAppend([0], 2, BOARD, COLS)).toBe('reject');
+    // Cell 2 is G, cell 1 is R, and they are adjacent — so this reaches the
+    // colour guard rather than being turned away by the adjacency check.
+    expect(canAppend([2], 1, BOARD, COLS)).toBe('reject');
   });
 
   it('appends an adjacent same-colour cell', () => {
