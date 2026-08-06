@@ -52,7 +52,7 @@ describe('formsSquareLoop', () => {
     expect(formsSquareLoop([0, 1, 2, 3, 0], COLS)).toBe(false);
   });
 
-  it('is false for a chain shorter than five', () => {
-    expect(formsSquareLoop(SQUARE, COLS)).toBe(false);
+  it('is false for a long chain that ends on a square without revisiting it', () => {
+    expect(formsSquareLoop([14, 8, 2, ...SQUARE], COLS)).toBe(false);
   });
 });
