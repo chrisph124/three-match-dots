@@ -1,9 +1,9 @@
 /** A dot colour, expressed as an index into the palette: 0..colors-1. */
-// eslint-disable-next-line sonarjs/redundant-type-aliases
+// eslint-disable-next-line sonarjs/redundant-type-aliases -- Semantic type to distinguish palette indices from cell positions, preventing misuse at call sites.
 export type Color = number;
 
 /** A board position flattened to a single number: row * cols + col. */
-// eslint-disable-next-line sonarjs/redundant-type-aliases
+// eslint-disable-next-line sonarjs/redundant-type-aliases -- Semantic type to distinguish board coordinates from color indices, preventing accidental parameter swaps.
 export type CellIndex = number;
 
 /** Flat, row-major board of colours. EMPTY marks a hole. */
@@ -35,7 +35,7 @@ export type CellMove = {
   readonly to: CellIndex;
 };
 
-// eslint-disable-next-line sonarjs/redundant-type-aliases
+// eslint-disable-next-line sonarjs/redundant-type-aliases -- Distinct semantic context (gravity/shuffle animations) from generic CellMove; clarifies intent for render and effect layers.
 export type FallMove = CellMove;
 
 export type Spawn = {
