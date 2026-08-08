@@ -1,0 +1,15 @@
+/** Index-aligned with the colour ids the core deals: 0 = R, 1 = G, 2 = B. */
+export const DOT_COLORS = ['#ff4d5e', '#3ddc84', '#4f8cff'] as const;
+
+export const SCREEN_BACKGROUND = '#0f1117';
+export const BOARD_BACKGROUND = '#171a23';
+export const TEXT_COLOR = '#e8eaf0';
+export const LINK_COLOR = '#e8eaf0';
+
+/** Dot radius as a fraction of the cell, leaving a visible gap between dots. */
+export const DOT_RADIUS_RATIO = 0.34;
+
+export function colorFor(colorId: number): string {
+  'worklet';
+  return DOT_COLORS[colorId] ?? DOT_COLORS[0];
+}
