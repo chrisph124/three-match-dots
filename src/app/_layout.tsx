@@ -7,7 +7,6 @@ export default function RootLayout() {
       <Stack>
         <Stack.Screen name="index" options={{ title: 'three-match-dots' }} />
         <Stack.Screen name="game" options={{ title: 'Game' }} />
-        <Stack.Screen name="game-over" options={{ title: 'Game Over' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       </Stack>
     </GestureHandlerRootView>
