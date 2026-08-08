@@ -1,4 +1,5 @@
 import { Canvas } from '@shopify/react-native-skia';
+import { useMemo } from 'react';
 import type { Board } from '../core/types';
 import type { BoardAnimation } from '../effects/use-board-animation';
 import type { ChainState } from '../input/use-board-gesture';
@@ -19,13 +20,19 @@ type BoardCanvasProps = {
  * offset correction.
  */
 export function BoardCanvas({ board, layout, anim, chainState }: BoardCanvasProps) {
+  const style = useMemo(
+    () => ({ width: layout.cellSize * layout.cols, height: layout.cellSize * layout.rows }),
+    [layout.cellSize, layout.cols, layout.rows],
+  );
+
   return (
-    <Canvas style={{ width: layout.cellSize * layout.cols, height: layout.cellSize * layout.rows }}>
+    <Canvas style={style}>
       <LinkPath
         chain={chainState.chain}
         finger={chainState.finger}
         linkColor={chainState.linkColor}
         layout={layout}
+        anim={anim}
       />
       <DotLayer board={board} layout={layout} anim={anim} />
     </Canvas>

@@ -21,13 +21,17 @@ export type ChainState = {
 };
 
 export function useChainState(initialBoard: readonly number[]): ChainState {
-  return {
-    chain: useSharedValue<number[]>([]),
-    finger: useSharedValue({ x: -1, y: -1 }),
-    board: useSharedValue<number[]>([...initialBoard]),
-    isResolving: useSharedValue(0),
-    linkColor: useSharedValue(-1),
-  };
+  const chain = useSharedValue<number[]>([]);
+  const finger = useSharedValue({ x: -1, y: -1 });
+  const board = useSharedValue<number[]>([...initialBoard]);
+  const isResolving = useSharedValue(0);
+  const linkColor = useSharedValue(-1);
+
+  // Same reasoning as `useBoardAnimation`: each shared value keeps its
+  // identity across renders, so memoising the object they are bundled into
+  // (rather than returning a fresh literal every render) lets everything
+  // downstream that depends on this hook's return value actually memoise.
+  return useMemo(() => ({ chain, finger, board, isResolving, linkColor }), []);
 }
 
 type GestureOptions = {
@@ -118,22 +122,12 @@ function buildPanGesture({ state, anim, layout, minChain, lineLength, onCommit }
  */
 export function useBoardGesture(options: GestureOptions) {
   const { state, anim, layout, minChain, lineLength, onCommit } = options;
-  const { chain, finger, board, isResolving, linkColor } = state;
 
+  // `state` is now a memoised, identity-stable object (see `useChainState`),
+  // so depending on it alone is sufficient — no need to also depend on its
+  // individual shared values just to keep this memo honest.
   return useMemo(
     () => buildPanGesture({ state, anim, layout, minChain, lineLength, onCommit }),
-    [
-      state,
-      anim,
-      layout,
-      minChain,
-      lineLength,
-      onCommit,
-      chain,
-      finger,
-      board,
-      isResolving,
-      linkColor,
-    ],
+    [state, anim, layout, minChain, lineLength, onCommit],
   );
 }

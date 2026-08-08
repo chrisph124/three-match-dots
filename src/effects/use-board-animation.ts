@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { runOnJS, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import type { ClearedCell } from '../core/types';
 
@@ -25,15 +26,21 @@ export type BoardAnimation = {
 };
 
 export function useBoardAnimation(cellCount: number): BoardAnimation {
-  return {
-    offsetX: useSharedValue<number[]>(new Array(cellCount).fill(0)),
-    offsetY: useSharedValue<number[]>(new Array(cellCount).fill(0)),
-    moveT: useSharedValue(1),
-    clearRank: useSharedValue<number[]>(new Array(cellCount).fill(-1)),
-    clearSpan: useSharedValue(1),
-    clearT: useSharedValue(0),
-    highlight: useSharedValue(-1),
-  };
+  const offsetX = useSharedValue<number[]>(new Array(cellCount).fill(0));
+  const offsetY = useSharedValue<number[]>(new Array(cellCount).fill(0));
+  const moveT = useSharedValue(1);
+  const clearRank = useSharedValue<number[]>(new Array(cellCount).fill(-1));
+  const clearSpan = useSharedValue(1);
+  const clearT = useSharedValue(0);
+  const highlight = useSharedValue(-1);
+
+  // Every shared value above keeps the same identity across re-renders of
+  // this hook — that is Reanimated's whole point. Wrapping them in a memoised
+  // object (rather than a fresh literal every render) lets every downstream
+  // useCallback/useMemo that depends on `anim` actually memoise, instead of
+  // rebuilding on every render for no reason. An empty dependency array is
+  // correct because none of these values ever change identity.
+  return useMemo(() => ({ offsetX, offsetY, moveT, clearRank, clearSpan, clearT, highlight }), []);
 }
 
 /**
