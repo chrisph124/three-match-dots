@@ -2,7 +2,6 @@
 export const DOT_COLORS = ['#ff4d5e', '#3ddc84', '#4f8cff'] as const;
 
 export const SCREEN_BACKGROUND = '#0f1117';
-export const BOARD_BACKGROUND = '#171a23';
 export const TEXT_COLOR = '#e8eaf0';
 export const LINK_COLOR = '#e8eaf0';
 
