@@ -24,8 +24,10 @@ function Dot({ cell, colorId, layout, anim }: DotProps) {
     () => centerY(cell, layout) + anim.offsetY.value[cell] * (1 - anim.moveT.value),
   );
   const radius = useDerivedValue(() => {
-    const base =
-      DOT_RADIUS_RATIO * layout.cellSize * (anim.highlight.value === colorId ? HIGHLIGHT_SCALE : 1);
+    // `-1` is also `EMPTY` in the `Color` domain (src/core/types.ts), so the
+    // idle "no highlight armed" sentinel must not be allowed to match a hole.
+    const highlighted = anim.highlight.value >= 0 && anim.highlight.value === colorId;
+    const base = DOT_RADIUS_RATIO * layout.cellSize * (highlighted ? HIGHLIGHT_SCALE : 1);
     const rank = anim.clearRank.value[cell];
     if (rank < 0) {
       return base;
