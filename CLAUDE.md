@@ -27,12 +27,12 @@ Native (Swift+Kotlin) = 2 codebases; Unity = overkill for simple 2D. No web vers
 | Language          | TypeScript                                                                                                                                                            |
 | App shell / build | **Expo** (dev client — NOT Expo Go, because Skia needs native code) + **EAS Build/Submit** (iOS first, then Android)                                                  |
 | Navigation        | **`expo-router`** — file-based; 3 screens (title / game / settings) — no game-over screen, endless has no fail state                                                  |
-| Rendering         | **`@shopify/react-native-skia`** — board drawn as one GPU canvas (dots, link path, particles)                                                                         |
+| Rendering         | **`@shopify/react-native-skia`** — board drawn as one GPU canvas (dots, link path)                                                                                    |
 | Animation         | **`react-native-reanimated`** v4 (worklets plugin auto-wired by `babel-preset-expo`, no `babel.config.js` needed) — falling/spring/clear tweens in UI-thread worklets |
 | Gestures          | **`react-native-gesture-handler`** — pan gesture; touch→grid hit-test + chain logic in worklet                                                                        |
-| State             | **Zustand** (UI/meta: HUD, settings); board sim state in Reanimated shared values for the hot loop                                                                    |
-| Persistence       | **`react-native-mmkv`** — high score + settings. No backend in v1.                                                                                                    |
-| Audio             | **`expo-av`** — SFX                                                                                                                                                   |
+| State             | One board + one score number, owned by `src/meta/use-game-state.ts`; Zustand deferred until settings/meta UI grow                                                     |
+| Persistence       | **`react-native-mmkv`** — persists the score only (key `'score'`). No settings persisted yet. No backend in v1.                                                       |
+| Audio             | **`expo-av`** — SFX (decided, not yet installed)                                                                                                                      |
 | Testing           | **Vitest** — unit-tests the pure-TS core ONLY (see Development Rules)                                                                                                 |
 | Lint / format     | **ESLint** (`eslint-config-expo`) + **Prettier**                                                                                                                      |
 | Package manager   | **npm**                                                                                                                                                               |
@@ -65,16 +65,16 @@ testing on a cheap real Android device is required before the Play release.
 
 - **Game core** (`pure TS`, engine-agnostic, no RN deps): grid model, adjacency + chain validation,
   loop detection, clear→gravity→refill resolution, scoring. ← unit-testable; reusable for a web version.
-- **Render layer** (Skia): subscribes to core state; draws dots, active link path, particles.
+- **Render layer** (Skia): subscribes to core state; draws dots and the active link path.
 - **Input layer** (Gesture Handler worklet): maps touch xy → cell; appends valid cells to chain;
   commits/cancels on release.
-- **Effects layer**: pop, fall-bounce, particle burst, combo flair, screen shake (Reanimated + Skia).
-- **Meta UI** (RN components): title, HUD (score / high score), settings. No game-over screen —
-  endless has no fail state.
+- **Effects layer**: dot pop, fall/spawn slide, shuffle slide, sweep-armed highlight (Reanimated + Skia).
+- **Meta UI** (RN components): title, HUD (score only — no high-score/best tracking), settings.
+  No game-over screen — endless has no fail state.
 
 ## Scope
 
-**v1 (current):** Two Dots-derived mechanic (8-way linking, 2×2-loop and ≥5-line sweeps, shuffle on deadlock), **endless score-attack mode only**, juicy visuals, local high score, iOS.
+**v1 (current):** Two Dots-derived mechanic (8-way linking, 2×2-loop and ≥5-line sweeps, shuffle on deadlock), **endless score-attack mode only**, juicy visuals, a persisted score, iOS.
 
 **Out of scope for v1 (do not build unless asked):** levels/campaign, monetization/ads/IAP,
 online/leaderboards, accounts/cloud-save, Android. Architecture must not block these later.
@@ -187,7 +187,7 @@ After a bug fix or review, ask: **is this lesson reusable / will it recur?**
   `.claude/skills/README.md` for the template.
 - **No (one-off)** → note it in the PR description / commit message. Do NOT author a skill.
 
-### Enforcement (wired at the Expo scaffold step, not yet active)
+### Enforcement (Husky + CI active; branch protection unverified)
 
 - **Husky + lint-staged**: pre-commit lints staged files; pre-push runs typecheck + unit tests.
   Auto-installs on `npm install` once `package.json` exists.

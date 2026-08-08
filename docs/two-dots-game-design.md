@@ -31,8 +31,10 @@ deadlocked board reshuffles — see the supersession note above.)
 - A straight chain of ≥5 (any of the 8 directions) → clears every dot of that color on the board.
 - No legal chain anywhere → the board reshuffles the same dots into a playable arrangement.
 - Gravity refill: survivors fall, new dots spawn at top.
-- Endless score-attack mode. Local high score.
-- Juicy game feel: dot pop, fall+bounce, particle bursts, combo flair, screen shake.
+- Endless score-attack mode. ~~Local high score~~ → built: the score itself persists across
+  launches; no separate best/high-score tracking.
+- Juicy game feel: ~~dot pop, fall+bounce, particle bursts, combo flair, screen shake~~ → built:
+  dot pop, fall/spawn slide, shuffle slide, sweep-armed highlight.
 
 **Non-functional:**
 
@@ -57,13 +59,18 @@ accounts/cloud-save, Android. (All deferred — architecture should not block th
 
 **Stack:**
 
-- **Render:** `@shopify/react-native-skia` — board as one GPU canvas (circles=dots, paths=links, particles).
-- **Animation:** `react-native-reanimated` v3 — falling/spring/clear tweens in UI-thread worklets.
+- **Render:** `@shopify/react-native-skia` — board as one GPU canvas (circles=dots, paths=links,
+  particles). (As built: dots and the link path only — no particle system.)
+- **Animation:** `react-native-reanimated` ~~v3~~ → built on v4 (4.5.1 installed) —
+  falling/spring/clear tweens in UI-thread worklets.
 - **Gesture:** `react-native-gesture-handler` — pan gesture; finger→grid hit-test + chain logic in worklet.
 - **App shell/build:** **Expo** (dev client) + **EAS Build/Submit** for iOS. No local Xcode required for cloud builds.
-- **State:** lightweight store (Zustand) for meta/UI; board sim state in shared values for the hot loop.
+- **State:** ~~lightweight store (Zustand) for meta/UI~~ → built: one board and one score number,
+  owned by `src/meta/use-game-state.ts`; Zustand deferred. Board sim state lives in shared values
+  for the hot loop.
 - **Persistence:** `react-native-mmkv` (or AsyncStorage) for high score/settings. No backend in v1.
-- **Audio:** `expo-av` for SFX.
+  (As built: persists the score only; no settings persisted yet.)
+- **Audio:** `expo-av` for SFX. (Decided, not yet installed.)
 
 **Why A fits:** entity count is tiny (~36–64 dots); no physics sim beyond falling tweens;
 no 3D; no networking. This is the easy end of Skia's range. Keeping gesture+hit-test+animation
@@ -76,12 +83,15 @@ meta-UI and smoother Expo iOS pipeline. Accepted trade: hand-build juice in Skia
 
 - **Game core (pure TS, engine-agnostic):** grid model, adjacency + chain validation, loop
   detection, clear+gravity+refill resolution, scoring. Unit-testable, no RN deps. ← _web-reusable_
-- **Render layer (Skia):** subscribes to core state; draws dots, active link path, particles.
+- **Render layer (Skia):** subscribes to core state; draws dots, active link path, ~~particles~~
+  → built: no particle system.
 - **Input layer (Gesture Handler worklet):** maps touch xy → cell; appends valid cells to chain;
   commits/cancels on release; calls into core.
-- **Effects layer:** pop, fall-bounce, burst, shake, combo — Reanimated + Skia values.
-- **Meta UI (RN components):** title, HUD (score/high), ~~game-over~~, settings. (No game-over
-  screen was built — endless mode has no fail state.)
+- **Effects layer:** ~~pop, fall-bounce, burst, shake, combo~~ → built: dot pop, fall/spawn slide,
+  shuffle slide, sweep-armed highlight — Reanimated + Skia values.
+- **Meta UI (RN components):** title, HUD (~~score/high~~ → score only), ~~game-over~~, settings.
+  (No game-over screen was built and there is no high-score tracking — endless mode has no fail
+  state.)
 
 ## Risks & Mitigations
 
@@ -97,8 +107,10 @@ meta-UI and smoother Expo iOS pipeline. Accepted trade: hand-build juice in Skia
 
 - Drag-link → clear → gravity-refill loop runs at 60fps on a mid-tier iPhone (device test, not sim).
 - Loop-closure correctly clears all dots of color.
-- "Juicy" bar met: pop + fall-bounce + burst + combo visible and smooth.
-- Endless score + persistent high score working.
+- ~~"Juicy" bar met: pop + fall-bounce + burst + combo visible and smooth~~ → built: dot pop,
+  fall/spawn slide, shuffle slide, sweep-armed highlight, visible and smooth.
+- ~~Endless score + persistent high score working~~ → built: endless score works and persists
+  across launches; no separate high-score tracking.
 - `eas build --platform ios` produces an installable build; TestFlight submit succeeds.
 
 ## Next Steps / Dependencies
