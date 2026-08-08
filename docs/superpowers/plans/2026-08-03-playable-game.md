@@ -4269,19 +4269,31 @@ After Task 22, confirm the spec is satisfied end to end.
 - [ ] `grep -rn "from '../resolve\|from './resolve" src/core/hot/` returns nothing
 - [ ] No file in `src/` exceeds 200 lines: `find src -name '*.ts' -o -name '*.tsx' | xargs wc -l | sort -rn | head -5`
 
-**On a real iPhone** (not the simulator — touch is not a mouse):
+**On a real iPhone** (not the simulator — touch is not a mouse). MMKV is a native module added after the scaffold, so this needs a fresh `npx expo run:ios`, not just Metro.
+
+Core mechanics:
 
 - [ ] Dragging through 3+ same-colour dots clears them; survivors fall, new dots drop in, the score rises
 - [ ] A 2-dot chain does nothing
-- [ ] Closing a 2×2 clears every dot of that colour, and the swell cue fires before the sweep
+- [ ] Closing a 2×2 clears every dot of that colour, and the cue fires before the sweep — **both halves**: the link path brightens AND the dots of that colour swell
 - [ ] A straight run of 5 does the same
-- [ ] Dragging past a corner never links a dot you did not aim at
+- [ ] Score rises by 60 for a 3-chain, 100 for a 4-chain, 150 for a 5-chain
+- [ ] Dragging past a corner never links a dot you did not aim at (tune `touchFraction` in `makeLayout` if it does)
 - [ ] 60fps through a full cascade
-- [ ] The score survives a force-quit and reopen
-- [ ] Settings → Reset score zeroes it
+- [ ] The score survives a force-quit and reopen; the board is freshly dealt
+- [ ] Settings → Reset score confirms, then zeroes it; the title reflects it on return
 - [ ] No route reaches a game-over screen
 
-**Not verifiable on device:** the shuffle. Deadlock is real but occurs in fewer than 1 in 2,000,000 random boards, so it cannot be reached by playing. Its correctness rests on the Task 13 tests against known-deadlocked boards.
+Hazards identified by the final whole-branch review — check these deliberately:
+
+- [ ] **One-frame tear at the board swap.** Dot colours come from React props while positions and radii come from shared values, so the two land on different schedules. Watch for either variant: the new board rendering fully settled for one frame before it jumps up and slides in, **or** cleared dots snapping back to full radius in their _old_ colour before the colours update. If visible, move the `resetClear` + `playMove` writes in `use-game-state.ts` into a `useLayoutEffect` keyed on the newly published board.
+- [ ] **Background the app mid-cascade** (notification shade or app switcher), then return — confirm input is not permanently locked. The unlock no longer depends on a tween completing normally; this check confirms that fix.
+- [ ] **iOS interactive-pop conflict on the left edge.** The board's left edge sits near x≈16 on a 390pt iPhone, inside the native edge-swipe zone, so a drag starting in the left column may pop the screen instead of linking. If it bites, set `gestureEnabled: false` on the game screen.
+- [ ] **Spawn clipping.** Refill dots start up to 6 cells above row 0 — confirm the Canvas clips them and they do not draw over the score HUD.
+- [ ] **Drag-spam under lock.** Repeatedly drag and release during a cascade: the lock must never leak, the score must never double-count, and no chain may survive from before the lock into after it.
+- [ ] **Link-path stroke colour.** If it renders black or not at all, swap the derived value in `link-path.tsx` to return `Skia.Color(...)` instead of a string.
+
+**Not verifiable by playing:** the shuffle. Deadlock is real but occurred zero times in 2,000,000 random boards, so it cannot be reached in play. Its correctness rests on the Task 13 tests against machine-found fixtures — and its animation path (the only user of `moveOffsetX`) will ship having never rendered. A temporary debug hook forcing a deadlocked board is the only way to see it.
 
 **Expected tuning after playtest** — all one-line changes in `src/core/config.ts` and `src/render/geometry.ts`:
 
