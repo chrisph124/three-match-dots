@@ -39,9 +39,19 @@ describe('hasLegalMove', () => {
     expect(check('RRGR/RRGR/GGRR/RGRG')).toBe(true);
   });
 
-  it('does not treat a row wrap as adjacency', () => {
-    // Cells 1 and 2 are both R but sit at (0,1) and (1,0) — not adjacent.
+  it('finds diagonal adjacency at width 2', () => {
+    // At width 2, cells 1 and 2 (indices for (0,1) and (1,0)) are genuine
+    // diagonal neighbours and have raw-index difference 1. This test confirms
+    // 8-way adjacency works, but cannot discriminate wrap-adjacency bugs.
     expect(check('GR/RG', 2)).toBe(true); // the diagonal G-G and R-R do touch
     expect(check('GR/BG', 3)).toBe(false);
+  });
+
+  it('does not treat a row wrap as adjacency', () => {
+    // Cells 2 and 3 are (0,2) and (1,0): raw-index neighbours (difference of 1)
+    // but two columns apart, so not adjacent. An implementation that treats
+    // index +/- 1 as adjacent merges them with the R at (2,1) into a component
+    // of 3 and wrongly reports a legal move.
+    expect(check('GGR/RBB/GRG')).toBe(false);
   });
 });
