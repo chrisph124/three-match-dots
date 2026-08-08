@@ -2628,10 +2628,12 @@ Expected: all green.
 - [ ] **Step 6: Verify the core is RN-free**
 
 ```bash
-grep -rE "react-native|@shopify|expo|reanimated" src/core/ || echo "core is clean"
+grep -rnE "(from|require\()\s*['\"](react-native|@shopify|expo|@expo)" src/core/ || echo "core is clean"
 ```
 
 Expected: `core is clean`.
+
+The pattern is anchored to `from`/`require(` deliberately. A bare `grep -rE "expo"` matches the substring inside every `export` line and reports the whole core as dirty.
 
 - [ ] **Step 7: Commit**
 
@@ -4263,7 +4265,7 @@ After Task 22, confirm the spec is satisfied end to end.
 **Automated:**
 
 - [ ] `npm run lint && npm run typecheck && npm test` all green
-- [ ] `grep -rE "react-native|@shopify|expo|reanimated" src/core/` returns nothing
+- [ ] `grep -rnE "(from|require\()\s*['\"](react-native|@shopify|expo|@expo)" src/core/` returns nothing — anchor to `from`/`require(`, since a bare `expo` matches every `export` line
 - [ ] `grep -rn "from '../resolve\|from './resolve" src/core/hot/` returns nothing
 - [ ] No file in `src/` exceeds 200 lines: `find src -name '*.ts' -o -name '*.tsx' | xargs wc -l | sort -rn | head -5`
 
