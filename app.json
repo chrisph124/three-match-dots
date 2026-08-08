@@ -8,7 +8,8 @@
     "scheme": "three-match-dots",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.anonymous.three-match-dots"
     },
     "android": {
       "adaptiveIcon": {
