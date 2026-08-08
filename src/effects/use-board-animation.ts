@@ -52,11 +52,18 @@ export function playClear(
   anim.clearRank.value = ranks;
   anim.clearSpan.value = Math.max(cleared.length, 1);
   anim.clearT.value = 0;
-  anim.clearT.value = withTiming(1, { duration: CLEAR_MS }, (finished) => {
+  // `onDone` fires unconditionally, not just when `finished === true`. A
+  // platform event (app backgrounding, a dropped frame callback, low memory)
+  // can interrupt this tween outside any path this codebase controls, and
+  // guarding on `finished` left `isResolving` locked forever when that
+  // happened — a permanently dead board with no in-screen recovery. Nothing
+  // here can double-invoke `onDone`: the next write to `clearT` happens only
+  // inside `resetClear`, which only ever runs from `applyAndDrop`, which is
+  // itself only reachable from this very callback — so at most one tween
+  // targeting `clearT` is ever in flight.
+  anim.clearT.value = withTiming(1, { duration: CLEAR_MS }, () => {
     'worklet';
-    if (finished === true) {
-      runOnJS(onDone)();
-    }
+    runOnJS(onDone)();
   });
 }
 
@@ -82,10 +89,12 @@ export function playMove(
   anim.offsetX.value = offsetX;
   anim.offsetY.value = offsetY;
   anim.moveT.value = 0;
-  anim.moveT.value = withTiming(1, { duration }, (finished) => {
+  // Same unconditional-fire reasoning as `playClear`: the next write to
+  // `moveT` (another `playMove` call, from `applyAndDrop` or `settle`) is
+  // only reachable from inside this very callback, so only one tween
+  // targeting `moveT` is ever in flight and `onDone` cannot double-fire.
+  anim.moveT.value = withTiming(1, { duration }, () => {
     'worklet';
-    if (finished === true) {
-      runOnJS(onDone)();
-    }
+    runOnJS(onDone)();
   });
 }
