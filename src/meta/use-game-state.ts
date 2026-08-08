@@ -14,7 +14,8 @@ import {
   type BoardAnimation,
 } from '../effects/use-board-animation';
 import type { ChainState } from '../input/use-board-gesture';
-import { moveOffsetX, moveOffsetY, spawnOffsetY, type BoardLayout } from '../render/geometry';
+import type { BoardLayout } from '../render/geometry';
+import { buildMoveOffsets } from '../render/move-offsets';
 
 type Options = {
   readonly layout: BoardLayout;
@@ -97,12 +98,7 @@ export function useGameState({
         return;
       }
       const shuffled = shuffleBoard(next.board, next.config, next.rngState);
-      const offsetX = new Array<number>(CELL_COUNT).fill(0);
-      const offsetY = new Array<number>(CELL_COUNT).fill(0);
-      for (const move of shuffled.moves) {
-        offsetX[move.to] = moveOffsetX(move.from, move.to, layout);
-        offsetY[move.to] = moveOffsetY(move.from, move.to, layout);
-      }
+      const { offsetX, offsetY } = buildMoveOffsets({ moves: shuffled.moves }, layout, CELL_COUNT);
       publish({ ...next, board: shuffled.board, rngState: shuffled.rngState });
       playMove(anim, offsetX, offsetY, SHUFFLE_MS, () => unlock(chainState));
     },
@@ -112,14 +108,11 @@ export function useGameState({
   const applyAndDrop = useCallback(
     (resolution: Resolution) => {
       const next = applyResolution(latest.current, resolution);
-      const offsetX = new Array<number>(CELL_COUNT).fill(0);
-      const offsetY = new Array<number>(CELL_COUNT).fill(0);
-      for (const fall of resolution.falls) {
-        offsetY[fall.to] = moveOffsetY(fall.from, fall.to, layout);
-      }
-      for (const spawn of resolution.spawns) {
-        offsetY[spawn.to] = spawnOffsetY(spawn.to, spawn.heightAbove, layout);
-      }
+      const { offsetX, offsetY } = buildMoveOffsets(
+        { moves: resolution.falls, spawns: resolution.spawns },
+        layout,
+        CELL_COUNT,
+      );
       resetClear(anim);
       publish(next);
       playMove(anim, offsetX, offsetY, FALL_MS, () => settle(next));
