@@ -36,9 +36,21 @@ function pushNeighbours(
 /**
  * True when some same-colour, 8-connected component is at least `minChain`
  * cells large — which is exactly the condition for a legal chain to exist,
- * because any connected component with n vertices contains a path of n
- * vertices when n is small, and always contains one of length minChain when
- * its size reaches minChain.
+ * PROVIDED `minChain` is 3 or 4.
+ *
+ * The general claim "a component of size >= minChain always contains a path
+ * of minChain vertices" is false (a star graph has arbitrarily many vertices
+ * but no path longer than 3). It holds here only up to size 4, and only
+ * because of a property specific to the 8-neighbourhood on a grid: any cell
+ * has at most 2 mutually non-adjacent neighbours among its 8, so any 3
+ * same-colour cells within a component must contain an adjacent pair — which
+ * is enough to guarantee both a 3-path and a 4-path once a component reaches
+ * that size. It is NOT enough to guarantee a 5-path or longer.
+ *
+ * Do not raise `minChain` above 4 without replacing this size check with a
+ * real path search: past that bound this function can report a legal move
+ * that does not exist, which is a genuine soft-lock for the player, not a
+ * cosmetic bug.
  *
  * This must NOT be written as a scan for adjacent same-colour pairs. Under
  * 8-way adjacency the four cells of any 2x2 block are pairwise adjacent, so
