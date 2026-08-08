@@ -1,0 +1,40 @@
+{
+  "name": "vercel-labs/json-render",
+  "version": "9d3dfc8917c1c6aa5568acbe0969523f3307376c",
+  "summary": "Auto-generated plugin from GitHub (26 skills)",
+  "private": true,
+  "skills": {
+    "react-native": {
+      "path": "skills/react-native/SKILL.md"
+    }
+  },
+  "excludes": {
+    "skills": [
+      "codegen",
+      "core",
+      "devtools",
+      "directives",
+      "image",
+      "ink",
+      "jotai",
+      "mcp",
+      "next",
+      "react",
+      "react-email",
+      "react-pdf",
+      "react-three-fiber",
+      "redux",
+      "remotion",
+      "remotion-best-practices",
+      "shadcn",
+      "shadcn-svelte",
+      "skill-creator",
+      "solid",
+      "svelte",
+      "vue",
+      "xstate",
+      "yaml",
+      "zustand"
+    ]
+  }
+}

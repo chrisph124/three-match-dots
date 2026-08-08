@@ -1,0 +1,20 @@
+{
+  "name": "ngocson/three-match-dots",
+  "mode": "vendored",
+  "dependencies": {
+    "vercel-labs/json-render": {
+      "version": "9d3dfc8917c1c6aa5568acbe0969523f3307376c",
+      "source": "https://github.com/vercel-labs/json-render",
+      "include": {
+        "skills": ["react-native"]
+      }
+    },
+    "softaworks/agent-toolkit": {
+      "version": "3027f20f3181758385a1bb8c022d4041dfb4de84",
+      "source": "https://github.com/softaworks/agent-toolkit",
+      "include": {
+        "skills": ["react-dev"]
+      }
+    }
+  }
+}
