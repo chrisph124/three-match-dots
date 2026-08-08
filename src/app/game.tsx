@@ -1,27 +1,16 @@
 import { Link } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { GestureDetector } from 'react-native-gesture-handler';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { DEFAULT_CONFIG } from '../core/config';
-import { newGame } from '../core/game';
 import { useBoardAnimation } from '../effects/use-board-animation';
-import { useBoardGesture, useChainState, type ChainState } from '../input/use-board-gesture';
+import { useBoardGesture, useChainState } from '../input/use-board-gesture';
+import { useGameState } from '../meta/use-game-state';
 import { BoardCanvas } from '../render/board-canvas';
 import { makeLayout } from '../render/geometry';
 import { SCREEN_BACKGROUND, TEXT_COLOR } from '../render/palette';
 
-/**
- * Placeholder release handler — task 19 replaces this with the real commit
- * pipeline. Kept as a plain function (not inline in the component body)
- * because `react-hooks/immutability` forbids a component from writing to a
- * shared value returned by one of its own hooks; the write is legitimate
- * Reanimated usage, so it moves outside the component instead of being
- * suppressed.
- */
-function logAndClearResolving(chainState: ChainState, chain: number[]): void {
-  console.log('committed', chain.length, 'dots');
-  chainState.isResolving.value = 0;
-}
+const CELL_COUNT = DEFAULT_CONFIG.rows * DEFAULT_CONFIG.cols;
 
 export default function GameScreen() {
   const { width } = useWindowDimensions();
@@ -30,15 +19,9 @@ export default function GameScreen() {
     () => makeLayout(DEFAULT_CONFIG.rows, DEFAULT_CONFIG.cols, boardSize),
     [boardSize],
   );
-  const state = useMemo(() => newGame(DEFAULT_CONFIG, 2026), []);
-  const anim = useBoardAnimation(DEFAULT_CONFIG.rows * DEFAULT_CONFIG.cols);
-  const chainState = useChainState(state.board);
-
-  // Task 19 replaces this with the real commit pipeline.
-  const onCommit = useCallback(
-    (chain: number[]) => logAndClearResolving(chainState, chain),
-    [chainState],
-  );
+  const anim = useBoardAnimation(CELL_COUNT);
+  const chainState = useChainState(new Array<number>(CELL_COUNT).fill(0));
+  const game = useGameState({ layout, anim, chainState });
 
   const gesture = useBoardGesture({
     state: chainState,
@@ -46,14 +29,15 @@ export default function GameScreen() {
     layout,
     minChain: DEFAULT_CONFIG.minChain,
     lineLength: DEFAULT_CONFIG.lineLength,
-    onCommit,
+    onCommit: game.commit,
   });
 
   return (
     <View style={styles.container}>
+      <Text style={styles.score}>{game.score}</Text>
       <GestureDetector gesture={gesture}>
         <View>
-          <BoardCanvas board={state.board} layout={layout} anim={anim} chainState={chainState} />
+          <BoardCanvas board={game.board} layout={layout} anim={anim} chainState={chainState} />
         </View>
       </GestureDetector>
       <Link href="/" style={styles.link}>
@@ -71,5 +55,6 @@ const styles = StyleSheet.create({
     gap: 24,
     backgroundColor: SCREEN_BACKGROUND,
   },
+  score: { fontSize: 40, fontWeight: '700', color: TEXT_COLOR, fontVariant: ['tabular-nums'] },
   link: { fontSize: 18, color: TEXT_COLOR },
 });
