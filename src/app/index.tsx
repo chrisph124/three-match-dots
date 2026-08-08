@@ -5,7 +5,7 @@ import { readScore } from '../meta/score-storage';
 import { SCREEN_BACKGROUND, TEXT_COLOR } from '../render/palette';
 
 export default function TitleScreen() {
-  const [score, setScore] = useState(0);
+  const [score, setScore] = useState(readScore);
 
   // Re-read on focus so the score is current after returning from a session.
   useFocusEffect(
