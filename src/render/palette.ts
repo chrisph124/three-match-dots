@@ -13,3 +13,14 @@ export function colorFor(colorId: number): string {
   'worklet';
   return DOT_COLORS[colorId] ?? DOT_COLORS[0];
 }
+
+/** Blends a `#rrggbb` colour toward white by `amount` (0..1). */
+export function lighten(hex: string, amount: number): string {
+  'worklet';
+  const channel = (offset: number): number => {
+    const value = parseInt(hex.slice(offset, offset + 2), 16);
+    return Math.round(value + (255 - value) * amount);
+  };
+  const toHex = (value: number): string => value.toString(16).padStart(2, '0');
+  return `#${toHex(channel(1))}${toHex(channel(3))}${toHex(channel(5))}`;
+}
