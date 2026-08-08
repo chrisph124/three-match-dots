@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { DEFAULT_CONFIG } from '../core/config';
 import { newGame } from '../core/game';
+import { useBoardAnimation } from '../effects/use-board-animation';
 import { BoardCanvas } from '../render/board-canvas';
 import { makeLayout } from '../render/geometry';
 import { SCREEN_BACKGROUND, TEXT_COLOR } from '../render/palette';
@@ -15,10 +16,11 @@ export default function GameScreen() {
     [boardSize],
   );
   const state = useMemo(() => newGame(DEFAULT_CONFIG, 2026), []);
+  const anim = useBoardAnimation(DEFAULT_CONFIG.rows * DEFAULT_CONFIG.cols);
 
   return (
     <View style={styles.container}>
-      <BoardCanvas board={state.board} layout={layout} />
+      <BoardCanvas board={state.board} layout={layout} anim={anim} />
       <Link href="/" style={styles.link}>
         Back
       </Link>
