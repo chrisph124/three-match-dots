@@ -66,13 +66,16 @@ export function shuffleBoard(
     }
   }
 
-  // Unreachable in practice. A permutation of a real board essentially always
-  // has a legal move; if the caller somehow hands over a board that cannot be
-  // permuted into one, deal fresh rather than return a dead board. By pigeonhole,
-  // some colour always holds at least ceil(cells / colours) dots, which on a 6×6
-  // with 3 colours is 12 — well above minChain. Any colour with >= minChain dots
-  // can always be arranged into a legal same-colour component. This fallback is
-  // here purely as a defensive net: real shuffles never reach it.
+  // Fallback: deal fresh dots if no permutation of the input is legal.
+  // PRECEDENCE: legality is unconditional; permutation/colour-count is best-effort.
+  // The permutation property (colour-faithful rearrangement) holds on all paths
+  // reachable in practice; this fallback deliberately breaks it to guarantee legality.
+  // Unreachable for any config where colors * minChain <= rows * cols, which every
+  // config this codebase constructs satisfies (e.g., 3 * 3 = 9 <= 36 for 6×6 board).
+  // By pigeonhole, some colour always holds >= ceil(cells / colours) dots (12 on 6×6
+  // with 3 colours), easily arranged into a legal component. If the fallback loop
+  // exhausts MAX_ATTEMPTS, the last deal is returned: full, valid, but not provably
+  // legal (in practice this is a defensive net that practice cannot reach).
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const result = dealt(board.length, config.colors, state);
     state = result.rngState;

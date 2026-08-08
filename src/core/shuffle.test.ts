@@ -38,6 +38,7 @@ describe('shuffleBoard', () => {
   it('emits a move for every dot that changed cell', () => {
     const { board, rows, cols } = parseBoard(DEADLOCKED_6X6);
     const result = shuffleBoard(board, configFor(rows, cols), 2026);
+    expect(result.moves.length).toBeGreaterThan(0);
     for (const move of result.moves) {
       expect(move.from).not.toBe(move.to);
       expect(result.board[move.to]).toBe(board[move.from]);
