@@ -5,6 +5,7 @@ import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { DEFAULT_CONFIG } from '../core/config';
 import { useBoardAnimation } from '../effects/use-board-animation';
 import { useBoardGesture, useChainState } from '../input/use-board-gesture';
+import { readScore, writeScore } from '../meta/score-storage';
 import { useGameState } from '../meta/use-game-state';
 import { BoardCanvas } from '../render/board-canvas';
 import { makeLayout } from '../render/geometry';
@@ -21,7 +22,14 @@ export default function GameScreen() {
   );
   const anim = useBoardAnimation(CELL_COUNT);
   const chainState = useChainState(new Array<number>(CELL_COUNT).fill(0));
-  const game = useGameState({ layout, anim, chainState });
+  const initialScore = useMemo(() => readScore(), []);
+  const game = useGameState({
+    layout,
+    anim,
+    chainState,
+    initialScore,
+    onScoreChange: writeScore,
+  });
 
   const gesture = useBoardGesture({
     state: chainState,
