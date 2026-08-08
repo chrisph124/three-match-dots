@@ -7,15 +7,15 @@ Guidance for Claude Code when working in this repository.
 **three-match-dots** is a mobile puzzle game in the **Two Dots** mold (NOT a Candy Crush / match-3 clone).
 iOS-first, built with **React Native**.
 
-**Core loop:** drag through ADJACENT same-color dots (up/down/left/right) to link a chain;
-chains of ≥2 clear on release; closing a 2×2 loop clears EVERY dot of that color on the board;
-survivors fall via gravity and new dots spawn from the top.
+**Core loop:** drag through ADJACENT same-color dots (8-way — orthogonal AND diagonal) to link a
+chain; chains of ≥3 clear on release; closing a 2×2 loop OR drawing a straight run of ≥5 clears
+EVERY dot of that color on the board; survivors fall via gravity and new dots spawn from the top.
+A board with no legal chain reshuffles. Endless zen — no fail state.
 
-**Current status:** the Expo dev-client app is scaffolded — expo-router routes at `src/app/`,
-an RN-free game core at `src/core/` with Vitest, ESLint + Prettier, Husky hooks, GitHub Actions
-CI, and a Skia canvas all in place. The game logic itself (chain/loop/gravity/scoring) is not yet
-built. Game design doc: `docs/two-dots-game-design.md`. Team workflow design:
-`docs/team-workflow-design.md`.
+**Current status:** playable. The game core (`src/core/`), Skia render layer (`src/render/`),
+gesture input (`src/input/`), animation (`src/effects/`), and score persistence (`src/meta/`)
+are all built and wired. 6×6 board, 3 colors, endless play with a persisted score.
+Game design doc: `docs/two-dots-game-design.md`. Team workflow design: `docs/team-workflow-design.md`.
 
 ## Tech Stack (decided)
 
@@ -26,7 +26,7 @@ Native (Swift+Kotlin) = 2 codebases; Unity = overkill for simple 2D. No web vers
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Language          | TypeScript                                                                                                                                                            |
 | App shell / build | **Expo** (dev client — NOT Expo Go, because Skia needs native code) + **EAS Build/Submit** (iOS first, then Android)                                                  |
-| Navigation        | **`expo-router`** — file-based; ~4 screens (title / game / game-over / settings)                                                                                      |
+| Navigation        | **`expo-router`** — file-based; 3 screens (title / game / settings) — no game-over screen, endless has no fail state                                                  |
 | Rendering         | **`@shopify/react-native-skia`** — board drawn as one GPU canvas (dots, link path, particles)                                                                         |
 | Animation         | **`react-native-reanimated`** v4 (worklets plugin auto-wired by `babel-preset-expo`, no `babel.config.js` needed) — falling/spring/clear tweens in UI-thread worklets |
 | Gestures          | **`react-native-gesture-handler`** — pan gesture; touch→grid hit-test + chain logic in worklet                                                                        |
@@ -69,11 +69,12 @@ testing on a cheap real Android device is required before the Play release.
 - **Input layer** (Gesture Handler worklet): maps touch xy → cell; appends valid cells to chain;
   commits/cancels on release.
 - **Effects layer**: pop, fall-bounce, particle burst, combo flair, screen shake (Reanimated + Skia).
-- **Meta UI** (RN components): title, HUD (score / high score), game-over, settings.
+- **Meta UI** (RN components): title, HUD (score / high score), settings. No game-over screen —
+  endless has no fail state.
 
 ## Scope
 
-**v1 (current):** Two Dots-exact mechanic, **endless score-attack mode only**, juicy visuals, local high score, iOS.
+**v1 (current):** Two Dots-derived mechanic (8-way linking, 2×2-loop and ≥5-line sweeps, shuffle on deadlock), **endless score-attack mode only**, juicy visuals, local high score, iOS.
 
 **Out of scope for v1 (do not build unless asked):** levels/campaign, monetization/ads/IAP,
 online/leaderboards, accounts/cloud-save, Android. Architecture must not block these later.
@@ -101,6 +102,24 @@ online/leaderboards, accounts/cloud-save, Android. Architecture must not block t
 - No fake data / mocks just to pass builds. Implement real logic.
 - Test on a REAL device for "feel" (touch ≠ simulator mouse) — iPhone first, then a low-end Android.
 - Keep Sentry/PostHog keys OUT of git (EAS secrets / env vars).
+- **`src/core/hot/` is worklet-safe:** no object allocation, no module state, no classes, and no
+  imports from `src/core/resolve/`. Dependencies point one way — `resolve/` may use `hot/`, never
+  the reverse. Every exported function opens with the `'worklet';` directive.
+- **`src/render/geometry.ts` follows the same rule** and is the only file outside `src/core/`
+  that Vitest runs. Keep it pure arithmetic over plain numbers.
+- **Zustand is not used yet.** State is one board and one number, owned by
+  `src/meta/use-game-state.ts`. Introduce a store when settings and meta UI actually grow.
+- **React Compiler lint rules (`react-hooks/immutability`, `react-hooks/refs`) error on
+  Reanimated `.value` writes and ref writes inside hook/component bodies.** Do not disable the
+  rule — move the mutation into a plain module-level function taking what it needs as arguments
+  (see `playClear`/`playMove`/`resetClear` in `src/effects/use-board-animation.ts`,
+  `buildPanGesture` in `src/input/use-board-gesture.ts`, `writeBoardMirror`/`unlock` in
+  `src/meta/use-game-state.ts`).
+- **`react-native-mmkv` is v4:** `MMKV` is a type-only export; instances come from a
+  `createMMKV()` factory, not `new MMKV()`. It also requires the native peer dependency
+  `react-native-nitro-modules`, declared explicitly in `package.json`.
+- **Anchor RN-free verification greps to `from`/`require(`.** A bare `grep -rE "expo" src/core/`
+  matches the substring inside every `export` line and falsely flags the whole core as dirty.
 
 ## Code Standards (enforced — CI-blocking)
 
