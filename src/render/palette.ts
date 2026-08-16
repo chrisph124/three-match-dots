@@ -1,5 +1,26 @@
-/** Index-aligned with the colour ids the core deals: 0 = R, 1 = G, 2 = B. */
-export const DOT_COLORS = ['#ff4d5e', '#3ddc84', '#4f8cff'] as const;
+/**
+ * Index-aligned with the colour ids the core deals: 0 = R, 1 = G, 2 = B.
+ *
+ * INVARIANT — APPEND-ONLY. Indices 0-2 are what Endless renders; their hex is
+ * FROZEN. Never reorder or re-hex an existing entry: this file sits outside the
+ * Vitest boundary, so a reorder would silently change Endless's on-screen colours
+ * with zero test failure. Only APPEND new hues at the end — Journey levels may use
+ * colours 3+. New entries follow the Okabe–Ito colourblind-safe ramp and must stay
+ * distinct from the red/green/blue already in use. The level parser caps a level's
+ * `colors` at this array's length (see src/core/level/level-script.ts).
+ *
+ * NOTE: hue distinguishes colours but the creative bible's LOCKED "identity =
+ * colour + shape, never colour alone" rule is NOT yet met — dot-layer.tsx draws
+ * plain circles. Shape/pattern differentiation is a known deferred gap.
+ */
+export const DOT_COLORS = [
+  '#ff4d5e', // 0 R              (frozen — Endless)
+  '#3ddc84', // 1 G              (frozen — Endless)
+  '#4f8cff', // 2 B              (frozen — Endless)
+  '#e69f00', // 3 orange         (Okabe–Ito)
+  '#cc79a7', // 4 reddish purple (Okabe–Ito)
+  '#f0e442', // 5 yellow         (Okabe–Ito)
+] as const;
 
 export const SCREEN_BACKGROUND = '#0f1117';
 export const TEXT_COLOR = '#e8eaf0';
