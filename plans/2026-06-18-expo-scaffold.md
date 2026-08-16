@@ -20,25 +20,25 @@
 
 ## File Structure
 
-| Path | Responsibility |
-|------|----------------|
-| `package.json` | deps + scripts (`start`/`ios`/`lint`/`typecheck`/`test`/`prepare`) + lint-staged config |
-| `app.json` | Expo config: name/slug `three-match-dots` |
-| `tsconfig.json` | extends `expo/tsconfig.base`, `strict: true` |
-| `babel.config.js` | `babel-preset-expo` (+ Reanimated plugin last, if not auto-wired) |
-| `eslint.config.js` | flat config: expo + sonarjs + no-any + prettier-disable |
-| `.prettierrc` | formatting rules |
-| `vitest.config.ts` | node env, includes `src/core/**/*.test.ts` only |
-| `app/_layout.tsx` | root Stack; `GestureHandlerRootView` + GH root import (added Task 5) |
-| `app/index.tsx` | title screen (placeholder) |
-| `app/game.tsx` | game screen (hosts the minimal Skia canvas) |
-| `app/game-over.tsx` | game-over screen (placeholder) |
-| `app/settings.tsx` | settings screen (placeholder) |
-| `src/core/are-adjacent.ts` | sample RN-free core fn (orthogonal adjacency) |
-| `src/core/are-adjacent.test.ts` | Vitest test for the sample core fn |
-| `src/render/.gitkeep` `src/input/.gitkeep` `src/effects/.gitkeep` `src/meta/.gitkeep` | layer folder stubs |
-| `.github/workflows/ci.yml` | PR/push CI: install → lint → typecheck → test |
-| `.husky/pre-commit` `.husky/pre-push` | git hooks |
+| Path                                                                                  | Responsibility                                                                          |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `package.json`                                                                        | deps + scripts (`start`/`ios`/`lint`/`typecheck`/`test`/`prepare`) + lint-staged config |
+| `app.json`                                                                            | Expo config: name/slug `three-match-dots`                                               |
+| `tsconfig.json`                                                                       | extends `expo/tsconfig.base`, `strict: true`                                            |
+| `babel.config.js`                                                                     | `babel-preset-expo` (+ Reanimated plugin last, if not auto-wired)                       |
+| `eslint.config.js`                                                                    | flat config: expo + sonarjs + no-any + prettier-disable                                 |
+| `.prettierrc`                                                                         | formatting rules                                                                        |
+| `vitest.config.ts`                                                                    | node env, includes `src/core/**/*.test.ts` only                                         |
+| `src/app/_layout.tsx`                                                                 | root Stack; `GestureHandlerRootView` + GH root import (added Task 5)                    |
+| `src/app/index.tsx`                                                                   | title screen (placeholder)                                                              |
+| `src/app/game.tsx`                                                                    | game screen (hosts the minimal Skia canvas)                                             |
+| `src/app/game-over.tsx`                                                               | game-over screen (placeholder)                                                          |
+| `src/app/settings.tsx`                                                                | settings screen (placeholder)                                                           |
+| `src/core/are-adjacent.ts`                                                            | sample RN-free core fn (orthogonal adjacency)                                           |
+| `src/core/are-adjacent.test.ts`                                                       | Vitest test for the sample core fn                                                      |
+| `src/render/.gitkeep` `src/input/.gitkeep` `src/effects/.gitkeep` `src/meta/.gitkeep` | layer folder stubs                                                                      |
+| `.github/workflows/ci.yml`                                                            | PR/push CI: install → lint → typecheck → test                                           |
+| `.husky/pre-commit` `.husky/pre-push`                                                 | git hooks                                                                               |
 
 Existing files preserved untouched: `CLAUDE.md` (Commands section updated in Task 7), `docs/`, `.claude/`, `.github/codeql.yml`, `.github/dependabot.yml`.
 
@@ -49,6 +49,7 @@ Existing files preserved untouched: `CLAUDE.md` (Commands section updated in Tas
 Scaffold into a temp dir (create-expo-app refuses non-empty dirs) then merge, preserving `.git`, `CLAUDE.md`, `docs/`, `.claude/`, `.github/`.
 
 **Files:**
+
 - Create: `package.json`, `app.json`, `tsconfig.json`, `babel.config.js`, `.gitignore`, `app/`, `assets/`, etc. (from template)
 - Preserve: everything already in the repo
 
@@ -109,6 +110,7 @@ git commit -m "chore: scaffold expo app (expo-router default template)"
 ## Task 2: Strict TypeScript + ESLint (sonarjs, no-any) + Prettier
 
 **Files:**
+
 - Modify: `tsconfig.json`, `package.json`
 - Create: `eslint.config.js`, `.prettierrc`, `.prettierignore`
 
@@ -173,7 +175,6 @@ android
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "noUncheckedIndexedAccess": true,
     "paths": {
       "@/*": ["./*"]
     }
@@ -206,7 +207,7 @@ Expected: both exit 0. Fix any `any`/strict errors in generated example code now
 - [ ] **Step 8: Commit**
 
 ```bash
-git add -A
+git add -u && git add eslint.config.js .prettierrc .prettierignore
 git commit -m "chore: add strict tsconfig, eslint (sonarjs, no-any), prettier"
 ```
 
@@ -217,27 +218,34 @@ git commit -m "chore: add strict tsconfig, eslint (sonarjs, no-any), prettier"
 Replace the template's tabs example with a 4-screen Stack and stub the architecture folders.
 
 **Files:**
-- Create: `app/_layout.tsx`, `app/index.tsx`, `app/game.tsx`, `app/game-over.tsx`, `app/settings.tsx`
+
+- Create: `src/app/_layout.tsx`, `src/app/index.tsx`, `src/app/game.tsx`, `src/app/game-over.tsx`, `src/app/settings.tsx`
 - Create: `src/render/.gitkeep`, `src/input/.gitkeep`, `src/effects/.gitkeep`, `src/meta/.gitkeep`
 - Delete: template example screens/components
+
+> **SDK 57 layout (verified at Task 1):** routes live at `src/app/`, NOT root `app/`. Ruled by the
+> human partner 2026-08-01: keep `src/app/`. The template generated `src/app/{_layout,index,explore}.tsx`,
+> `src/components/`, `src/constants/`, `src/hooks/`, `src/global.css`, and root `scripts/` — there is
+> no `(tabs)` dir and no `+not-found.tsx`.
 
 - [ ] **Step 1: Inspect what the template generated**
 
 ```bash
-ls -R app && ls components constants hooks scripts 2>/dev/null
+ls -R src/app src/components src/constants src/hooks scripts 2>/dev/null
 ```
 
-Expected: shows generated example (commonly `app/(tabs)/`, `app/_layout.tsx`, `app/+not-found.tsx`, `components/`, `constants/`, `hooks/`, `scripts/reset-project.js`). Note exact names for the next step.
+Expected: confirms the layout described in the note above. Note exact names before deleting.
 
 - [ ] **Step 2: Remove the example (adjust paths to what Step 1 showed)**
 
 ```bash
-rm -rf "app/(tabs)" app/+not-found.tsx app/_layout.tsx components constants hooks scripts
+git rm -r --cached src/components src/constants src/hooks scripts src/global.css 2>/dev/null
+rm -rf src/components src/constants src/hooks scripts src/global.css src/app/explore.tsx
 ```
 
-Expected: `app/` now empty (or only stray files); example component dirs gone.
+Expected: example component dirs gone; `src/app/` retains only files this task rewrites. If `src/global.css` is imported by `src/app/_layout.tsx`, that import disappears when Step 3 rewrites the file.
 
-- [ ] **Step 3: Write `app/_layout.tsx` (plain Stack — GestureHandler wrap added in Task 5)**
+- [ ] **Step 3: Write `src/app/_layout.tsx` (plain Stack — GestureHandler wrap added in Task 5)**
 
 ```tsx
 import { Stack } from 'expo-router';
@@ -254,7 +262,7 @@ export default function RootLayout() {
 }
 ```
 
-- [ ] **Step 4: Write `app/index.tsx` (title)**
+- [ ] **Step 4: Write `src/app/index.tsx` (title)**
 
 ```tsx
 import { Link } from 'expo-router';
@@ -281,7 +289,7 @@ const styles = StyleSheet.create({
 });
 ```
 
-- [ ] **Step 5: Write `app/game.tsx` (placeholder — Skia canvas added in Task 5)**
+- [ ] **Step 5: Write `src/app/game.tsx` (placeholder — Skia canvas added in Task 5)**
 
 ```tsx
 import { Link } from 'expo-router';
@@ -305,7 +313,7 @@ const styles = StyleSheet.create({
 });
 ```
 
-- [ ] **Step 6: Write `app/game-over.tsx` (placeholder)**
+- [ ] **Step 6: Write `src/app/game-over.tsx` (placeholder)**
 
 ```tsx
 import { Link } from 'expo-router';
@@ -329,7 +337,7 @@ const styles = StyleSheet.create({
 });
 ```
 
-- [ ] **Step 7: Write `app/settings.tsx` (placeholder)**
+- [ ] **Step 7: Write `src/app/settings.tsx` (placeholder)**
 
 ```tsx
 import { Link } from 'expo-router';
@@ -379,7 +387,7 @@ Expected: Metro starts, QR/menu shown, no red bundle errors. Press `Ctrl+C` to s
 - [ ] **Step 11: Commit**
 
 ```bash
-git add -A
+git add -u && git add src/app src/render/.gitkeep src/input/.gitkeep src/effects/.gitkeep src/meta/.gitkeep
 git commit -m "feat: add 4 placeholder routes and src layer folders"
 ```
 
@@ -390,6 +398,7 @@ git commit -m "feat: add 4 placeholder routes and src layer folders"
 Establish the RN-free testable-core boundary with a real red→green cycle.
 
 **Files:**
+
 - Create: `vitest.config.ts`, `src/core/are-adjacent.test.ts`, `src/core/are-adjacent.ts`
 - Modify: `package.json` (test scripts)
 
@@ -490,7 +499,7 @@ Expected: both exit 0.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add -A
+git add -u && git add vitest.config.ts src/core
 git commit -m "test: add pure-ts core sample (are-adjacent) with vitest"
 ```
 
@@ -501,7 +510,8 @@ git commit -m "test: add pure-ts core sample (are-adjacent) with vitest"
 Add the native rendering/animation/gesture deps and prove Skia renders via a local dev-client build. This de-risks the #1 documented pain (version pinning).
 
 **Files:**
-- Modify: `app/_layout.tsx`, `app/game.tsx`, `babel.config.js` (if needed)
+
+- Modify: `src/app/_layout.tsx`, `src/app/game.tsx`, `babel.config.js` (create if needed — SDK 57 does not generate one)
 - Adds native deps → triggers a native rebuild
 
 - [ ] **Step 1: Install the native deps via expo install (SDK locks versions)**
@@ -530,7 +540,7 @@ module.exports = function (api) {
 
 - [ ] **Step 3: Wrap the root layout with GestureHandlerRootView + add the root import**
 
-Replace `app/_layout.tsx` with:
+Replace `src/app/_layout.tsx` with:
 
 ```tsx
 import 'react-native-gesture-handler';
@@ -551,9 +561,9 @@ export default function RootLayout() {
 }
 ```
 
-- [ ] **Step 4: Add a minimal Skia canvas to `app/game.tsx`**
+- [ ] **Step 4: Add a minimal Skia canvas to `src/app/game.tsx`**
 
-Replace `app/game.tsx` with:
+Replace `src/app/game.tsx` with:
 
 ```tsx
 import { Canvas, Circle } from '@shopify/react-native-skia';
@@ -605,7 +615,7 @@ Navigate title → "Play" → Game screen. **Confirm a blue circle is drawn** in
 - [ ] **Step 8: Commit**
 
 ```bash
-git add -A
+git add -u && git add babel.config.js 2>/dev/null; git add -u
 git commit -m "feat: add skia, reanimated, gesture-handler with minimal skia canvas"
 ```
 
@@ -616,6 +626,7 @@ git commit -m "feat: add skia, reanimated, gesture-handler with minimal skia can
 Wire enforcement: pre-commit lints staged files, pre-push runs typecheck+tests, CI runs all JS/TS gates on PRs.
 
 **Files:**
+
 - Create: `.husky/pre-commit`, `.husky/pre-push`, `.github/workflows/ci.yml`
 - Modify: `package.json` (`prepare` script + `lint-staged` config)
 
@@ -684,7 +695,7 @@ jobs:
 - [ ] **Step 7: Test the pre-commit hook end-to-end**
 
 ```bash
-git add -A
+git add -u && git add .husky .github/workflows/ci.yml
 git commit -m "chore: add husky, lint-staged, and github actions ci"
 ```
 
@@ -703,6 +714,7 @@ Expected: all three exit 0.
 ## Task 7: Update CLAUDE.md commands, push, open PR
 
 **Files:**
+
 - Modify: `CLAUDE.md` (Commands section)
 
 - [ ] **Step 1: Replace the "not yet scaffolded" Commands block in `CLAUDE.md`**

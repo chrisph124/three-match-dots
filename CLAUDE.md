@@ -7,32 +7,35 @@ Guidance for Claude Code when working in this repository.
 **three-match-dots** is a mobile puzzle game in the **Two Dots** mold (NOT a Candy Crush / match-3 clone).
 iOS-first, built with **React Native**.
 
-**Core loop:** drag through ADJACENT same-color dots (up/down/left/right) to link a chain;
-chains of ≥2 clear on release; closing a 2×2 loop clears EVERY dot of that color on the board;
-survivors fall via gravity and new dots spawn from the top.
+**Core loop:** drag through ADJACENT same-color dots (8-way — orthogonal AND diagonal) to link a
+chain; chains of ≥3 clear on release; closing a 2×2 loop OR drawing a straight run of ≥5 clears
+EVERY dot of that color on the board; survivors fall via gravity and new dots spawn from the top.
+A board with no legal chain reshuffles. Endless zen — no fail state.
 
-**Current status:** greenfield — app not yet scaffolded. Game design approved via brainstorm.
+**Current status:** playable. The game core (`src/core/`), Skia render layer (`src/render/`),
+gesture input (`src/input/`), animation (`src/effects/`), and score persistence (`src/meta/`)
+are all built and wired. 6×6 board, 3 colors, endless play with a persisted score.
 Game design doc: `docs/two-dots-game-design.md`. Team workflow design: `docs/team-workflow-design.md`.
 
-## Tech Stack (decided — not yet scaffolded)
+## Tech Stack (decided)
 
 **Why React Native:** pure mobile, **iOS first then Android** — one TS codebase ships both stores via EAS.
 Native (Swift+Kotlin) = 2 codebases; Unity = overkill for simple 2D. No web version → no monorepo.
 
-| Concern | Choice |
-|---------|--------|
-| Language | TypeScript |
-| App shell / build | **Expo** (dev client — NOT Expo Go, because Skia needs native code) + **EAS Build/Submit** (iOS first, then Android) |
-| Navigation | **`expo-router`** — file-based; ~4 screens (title / game / game-over / settings) |
-| Rendering | **`@shopify/react-native-skia`** — board drawn as one GPU canvas (dots, link path, particles) |
-| Animation | **`react-native-reanimated`** v3 — falling/spring/clear tweens in UI-thread worklets |
-| Gestures | **`react-native-gesture-handler`** — pan gesture; touch→grid hit-test + chain logic in worklet |
-| State | **Zustand** (UI/meta: HUD, settings); board sim state in Reanimated shared values for the hot loop |
-| Persistence | **`react-native-mmkv`** — high score + settings. No backend in v1. |
-| Audio | **`expo-av`** — SFX |
-| Testing | **Vitest** — unit-tests the pure-TS core ONLY (see Development Rules) |
-| Lint / format | **ESLint** (`eslint-config-expo`) + **Prettier** |
-| Package manager | **npm** |
+| Concern           | Choice                                                                                                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Language          | TypeScript                                                                                                                                                            |
+| App shell / build | **Expo** (dev client — NOT Expo Go, because Skia needs native code) + **EAS Build/Submit** (iOS first, then Android)                                                  |
+| Navigation        | **`expo-router`** — file-based; 3 screens (title / game / settings) — no game-over screen, endless has no fail state                                                  |
+| Rendering         | **`@shopify/react-native-skia`** — board drawn as one GPU canvas (dots, link path)                                                                                    |
+| Animation         | **`react-native-reanimated`** v4 (worklets plugin auto-wired by `babel-preset-expo`, no `babel.config.js` needed) — falling/spring/clear tweens in UI-thread worklets |
+| Gestures          | **`react-native-gesture-handler`** — pan gesture; touch→grid hit-test + chain logic in worklet                                                                        |
+| State             | One board + one score number, owned by `src/meta/use-game-state.ts`; Zustand deferred until settings/meta UI grow                                                     |
+| Persistence       | **`react-native-mmkv`** — persists the score only (key `'score'`). No settings persisted yet. No backend in v1.                                                       |
+| Audio             | **`expo-av`** — SFX (decided, not yet installed)                                                                                                                      |
+| Testing           | **Vitest** — unit-tests the pure-TS core ONLY (see Development Rules)                                                                                                 |
+| Lint / format     | **ESLint** (`eslint-config-expo`) + **Prettier**                                                                                                                      |
+| Package manager   | **npm**                                                                                                                                                               |
 
 **Performance principle:** keep gesture + hit-test + animation on the UI thread (worklets) to avoid
 the JS↔native bridge — that bridge is the classic cause of RN game jank. Entity count is tiny
@@ -40,17 +43,17 @@ the JS↔native bridge — that bridge is the classic cause of RN game jank. Ent
 
 ## Infrastructure (decided — wired at scaffold)
 
-| Area | Choice |
-|------|--------|
-| Build / release | **EAS Build + EAS Submit** → TestFlight (iOS), Google Play (Android phase) |
-| Crash reporting | **Sentry** (`@sentry/react-native`) |
-| Analytics | **PostHog** — privacy-friendly; no IDFA → avoids iOS ATT prompt; EU-hosting option |
-| OTA updates | **`expo-updates`** (`eas update`) — push JS-only fixes without a store review |
-| Code quality | **`eslint-plugin-sonarjs`** (SonarLint rules) — local + CI, free. No SonarCloud SaaS (redundant). |
-| Security scan | **CodeQL** (`.github/workflows/codeql.yml`) + **Dependabot** (`.github/dependabot.yml`) — active, free on public repo |
-| CI | **GitHub Actions**: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest core (+ coverage) — ONE workflow at scaffold |
-| Git hooks | **Husky + lint-staged** (wired at scaffold) |
-| Backend | **None for v1** — Sentry/PostHog are 3rd-party SaaS, not our servers |
+| Area            | Choice                                                                                                                |
+| --------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Build / release | **EAS Build + EAS Submit** → TestFlight (iOS), Google Play (Android phase)                                            |
+| Crash reporting | **Sentry** (`@sentry/react-native`)                                                                                   |
+| Analytics       | **PostHog** — privacy-friendly; no IDFA → avoids iOS ATT prompt; EU-hosting option                                    |
+| OTA updates     | **`expo-updates`** (`eas update`) — push JS-only fixes without a store review                                         |
+| Code quality    | **`eslint-plugin-sonarjs`** (SonarLint rules) — local + CI, free. No SonarCloud SaaS (redundant).                     |
+| Security scan   | **CodeQL** (`.github/workflows/codeql.yml`) + **Dependabot** (`.github/dependabot.yml`) — active, free on public repo |
+| CI              | **GitHub Actions**: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest core — ONE workflow at scaffold        |
+| Git hooks       | **Husky + lint-staged** (wired at scaffold)                                                                           |
+| Backend         | **None for v1** — Sentry/PostHog are 3rd-party SaaS, not our servers                                                  |
 
 **Privacy/compliance:** analytics requires App Store Privacy Nutrition Labels + Google Play Data Safety
 disclosures (PostHog keeps this minimal). Keep Sentry/PostHog keys OUT of git (use EAS secrets / env).
@@ -62,28 +65,31 @@ testing on a cheap real Android device is required before the Play release.
 
 - **Game core** (`pure TS`, engine-agnostic, no RN deps): grid model, adjacency + chain validation,
   loop detection, clear→gravity→refill resolution, scoring. ← unit-testable; reusable for a web version.
-- **Render layer** (Skia): subscribes to core state; draws dots, active link path, particles.
+- **Render layer** (Skia): subscribes to core state; draws dots and the active link path.
 - **Input layer** (Gesture Handler worklet): maps touch xy → cell; appends valid cells to chain;
   commits/cancels on release.
-- **Effects layer**: pop, fall-bounce, particle burst, combo flair, screen shake (Reanimated + Skia).
-- **Meta UI** (RN components): title, HUD (score / high score), game-over, settings.
+- **Effects layer**: dot pop, fall/spawn slide, shuffle slide, sweep-armed highlight (Reanimated + Skia).
+- **Meta UI** (RN components): title, HUD (score only — no high-score/best tracking), settings.
+  No game-over screen — endless has no fail state.
 
 ## Scope
 
-**v1 (current):** Two Dots-exact mechanic, **endless score-attack mode only**, juicy visuals, local high score, iOS.
+**v1 (current):** Two Dots-derived mechanic (8-way linking, 2×2-loop and ≥5-line sweeps, shuffle on deadlock), **endless score-attack mode only**, juicy visuals, a persisted score, iOS.
 
 **Out of scope for v1 (do not build unless asked):** levels/campaign, monetization/ads/IAP,
 online/leaderboards, accounts/cloud-save, Android. Architecture must not block these later.
 
 ## Commands
 
-> Not yet scaffolded. Populate once `package.json` exists. Expected (Expo):
-- `npx expo start --dev-client` — run dev client
-- `npx expo run:ios` / `npx expo run:android` — local build/run
-- `npm test` — Vitest (pure-TS core)
-- `eas build --platform ios|android` — cloud build
-- `eas submit --platform ios|android` — submit to TestFlight / Google Play
-- `eas update` — push an OTA (JS-only) update
+- `npm start` — start Metro for the dev client (`expo start --dev-client`)
+- `npm run ios` — build + run the dev client on iOS (`expo run:ios`)
+- `npm run android` — build + run the dev client on Android
+- `npm run lint` — ESLint (incl. sonarjs, no-any)
+- `npm run typecheck` — `tsc --noEmit` (strict)
+- `npm test` — Vitest (pure-TS core in `src/core/`)
+- `npm run test:watch` — Vitest watch mode
+
+> EAS build/submit + OTA (`eas update`) are deferred to the release round (see `docs/expo-scaffold-design.md`).
 
 ## Development Rules
 
@@ -96,6 +102,24 @@ online/leaderboards, accounts/cloud-save, Android. Architecture must not block t
 - No fake data / mocks just to pass builds. Implement real logic.
 - Test on a REAL device for "feel" (touch ≠ simulator mouse) — iPhone first, then a low-end Android.
 - Keep Sentry/PostHog keys OUT of git (EAS secrets / env vars).
+- **`src/core/hot/` is worklet-safe:** no object allocation, no module state, no classes, and no
+  imports from `src/core/resolve/`. Dependencies point one way — `resolve/` may use `hot/`, never
+  the reverse. Every exported function opens with the `'worklet';` directive.
+- **`src/render/geometry.ts` follows the same rule** and is the only file outside `src/core/`
+  that Vitest runs. Keep it pure arithmetic over plain numbers.
+- **Zustand is not used yet.** State is one board and one number, owned by
+  `src/meta/use-game-state.ts`. Introduce a store when settings and meta UI actually grow.
+- **React Compiler lint rules (`react-hooks/immutability`, `react-hooks/refs`) error on
+  Reanimated `.value` writes and ref writes inside hook/component bodies.** Do not disable the
+  rule — move the mutation into a plain module-level function taking what it needs as arguments
+  (see `playClear`/`playMove`/`resetClear` in `src/effects/use-board-animation.ts`,
+  `buildPanGesture` in `src/input/use-board-gesture.ts`, `writeBoardMirror`/`unlock` in
+  `src/meta/use-game-state.ts`).
+- **`react-native-mmkv` is v4:** `MMKV` is a type-only export; instances come from a
+  `createMMKV()` factory, not `new MMKV()`. It also requires the native peer dependency
+  `react-native-nitro-modules`, declared explicitly in `package.json`.
+- **Anchor RN-free verification greps to `from`/`require(`.** A bare `grep -rE "expo" src/core/`
+  matches the substring inside every `export` line and falsely flags the whole core as dirty.
 
 ## Code Standards (enforced — CI-blocking)
 
@@ -109,6 +133,7 @@ online/leaderboards, accounts/cloud-save, Android. Architecture must not block t
 ## Definition of Done (every scaffold / bug fix / feature)
 
 A change is NOT done until ALL hold:
+
 1. **Unit tests** — check for existing tests covering the touched core logic; create/update if missing.
    - **Bug fix → regression test FIRST**: write a failing test that reproduces the bug (red), then fix (green),
      so it can never silently return. Pairs with `superpowers:systematic-debugging`.
@@ -129,14 +154,14 @@ This team uses **superpowers** (free) — NOT claudekit (`/ck:*`). Do not use `/
 
 **The flow — every change goes through all 6 steps:**
 
-| # | Step | Superpowers skill to invoke | Output |
-|---|------|-----------------------------|--------|
-| 1 | Brainstorm | `superpowers:brainstorming` | design doc in `docs/` |
-| 2 | Plan | `superpowers:writing-plans` | plan in `plans/` |
-| 3 | Implement | `superpowers:executing-plans` (+ `subagent-driven-development`) | code on a feature branch |
-| 4 | Unit tests | `superpowers:test-driven-development` | tests written with/before code |
-| 5 | Review | `superpowers:requesting-code-review` → `receiving-code-review` | PR + review (AI + human) |
-| 6 | Lesson-learned | `superpowers:writing-skills` | a committed skill in `.claude/skills/` (only if reusable) |
+| #   | Step           | Superpowers skill to invoke                                     | Output                                                    |
+| --- | -------------- | --------------------------------------------------------------- | --------------------------------------------------------- |
+| 1   | Brainstorm     | `superpowers:brainstorming`                                     | design doc in `docs/`                                     |
+| 2   | Plan           | `superpowers:writing-plans`                                     | plan in `plans/`                                          |
+| 3   | Implement      | `superpowers:executing-plans` (+ `subagent-driven-development`) | code on a feature branch                                  |
+| 4   | Unit tests     | `superpowers:test-driven-development`                           | tests written with/before code                            |
+| 5   | Review         | `superpowers:requesting-code-review` → `receiving-code-review`  | PR + review (AI + human)                                  |
+| 6   | Lesson-learned | `superpowers:writing-skills`                                    | a committed skill in `.claude/skills/` (only if reusable) |
 
 Support skills: `systematic-debugging` (bugs), `verification-before-completion` &
 `finishing-a-development-branch` (close-out), `using-git-worktrees` (parallel work).
@@ -156,12 +181,13 @@ alternative: `/plugin marketplace add obra/superpowers` then install — not the
 ### Lessons-learned (step 6) — avoid repeat bugs
 
 After a bug fix or review, ask: **is this lesson reusable / will it recur?**
+
 - **Yes** → codify it as a project skill via `superpowers:writing-skills`, committed to
   `.claude/skills/<lesson-slug>/SKILL.md`. Committed skills auto-load for every teammate. See
   `.claude/skills/README.md` for the template.
 - **No (one-off)** → note it in the PR description / commit message. Do NOT author a skill.
 
-### Enforcement (wired at the Expo scaffold step, not yet active)
+### Enforcement (Husky + CI active; branch protection unverified)
 
 - **Husky + lint-staged**: pre-commit lints staged files; pre-push runs typecheck + unit tests.
   Auto-installs on `npm install` once `package.json` exists.
