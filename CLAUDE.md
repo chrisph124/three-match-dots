@@ -4,18 +4,24 @@ Guidance for Claude Code when working in this repository.
 
 ## Project Overview
 
-**three-match-dots** is a mobile puzzle game in the **Two Dots** mold (NOT a Candy Crush / match-3 clone).
-iOS-first, built with **React Native**.
+**Three Dots** (repo: `three-match-dots`) is a mobile puzzle game in the **Two Dots** mold (NOT a
+Candy Crush / match-3 clone). iOS-first, built with **React Native**. The concept ships two modes:
+**Endless** (score-attack, no fail state — built and playable) and **Journey** (timed, level-based,
+world-map progression — designed, vertical slice in progress; see "Scope" below).
 
 **Core loop:** drag through ADJACENT same-color dots (8-way — orthogonal AND diagonal) to link a
 chain; chains of ≥3 clear on release; closing a 2×2 loop OR drawing a straight run of ≥5 clears
-EVERY dot of that color on the board; survivors fall via gravity and new dots spawn from the top.
-A board with no legal chain reshuffles. Endless zen — no fail state.
+EVERY dot of that color on the board (a shipped bonus mechanic beyond the classic Two Dots ruleset —
+see `docs/three-dots-game-design.md`); survivors fall via gravity and new dots spawn from the top.
+A board with no legal chain reshuffles. Endless is zen — no fail state.
 
-**Current status:** playable. The game core (`src/core/`), Skia render layer (`src/render/`),
-gesture input (`src/input/`), animation (`src/effects/`), and score persistence (`src/meta/`)
-are all built and wired. 6×6 board, 3 colors, endless play with a persisted score.
-Game design doc: `docs/two-dots-game-design.md`. Team workflow design: `docs/team-workflow-design.md`.
+**Current status:** Endless is playable. The game core (`src/core/`), Skia render layer
+(`src/render/`), gesture input (`src/input/`), animation (`src/effects/`), and score persistence
+(`src/meta/`) are all built and wired for Endless. 6×6 board, 3 colors, endless play with a
+persisted score. Journey (timed levels, obstacles, world map) is designed but not yet
+implemented — no `src/core/level/` or `src/core/journey/` exists yet.
+Game design: `docs/three-dots-game-design.md` (current authority; `docs/two-dots-game-design.md`
+is superseded, kept for history). Team workflow design: `docs/team-workflow-design.md`.
 
 ## Tech Stack (decided)
 
@@ -74,10 +80,20 @@ testing on a cheap real Android device is required before the Play release.
 
 ## Scope
 
-**v1 (current):** Two Dots-derived mechanic (8-way linking, 2×2-loop and ≥5-line sweeps, shuffle on deadlock), **endless score-attack mode only**, juicy visuals, a persisted score, iOS.
+**Shipped:** Two Dots-derived mechanic (8-way linking, 2×2-loop and ≥5-line sweeps, shuffle on
+deadlock), endless score-attack mode, juicy visuals, a persisted score, iOS.
 
-**Out of scope for v1 (do not build unless asked):** levels/campaign, monetization/ads/IAP,
-online/leaderboards, accounts/cloud-save, Android. Architecture must not block these later.
+**Vertical slice in progress:** Journey mode — timed levels, a caged-dot obstacle, one
+hand-authored Japan level, world-map progression. Design authority: `docs/three-dots-game-design.md`,
+`docs/level-script-schema.md` (the level-script contract), `docs/creative-bible.md` (look/feel).
+Not yet in `src/` — do not assume any Journey code exists until it lands.
+
+**Out of scope for now (do not build unless asked):** levels/campaign beyond the vertical slice,
+monetization/ads/IAP, online/leaderboards, accounts/cloud-save, Android. Architecture must not
+block these later — see `docs/monetization-and-roadmap.md` for the deferred economy and
+`docs/apple-compliance-checklist.md` for compliance-when-added. Android is deferred, not
+architecturally blocked: it ships from the same RN codebase when it's time, no separate native
+track needed.
 
 ## Commands
 
@@ -197,7 +213,14 @@ After a bug fix or review, ask: **is this lesson reusable / will it recur?**
 
 ## Key References
 
-- Game design: `docs/two-dots-game-design.md`
+- Game design (current authority): `docs/three-dots-game-design.md`
+- Game design (superseded, kept for history): `docs/two-dots-game-design.md`
+- Creative bible (look, tone, LOCKED rules): `docs/creative-bible.md`
+- Level-script schema (Journey level contract): `docs/level-script-schema.md`
+- Monetization & expansion roadmap (deferred): `docs/monetization-and-roadmap.md`
+- Apple compliance checklist: `docs/apple-compliance-checklist.md`
+- RnD department (agent workflow for level/art authoring): `docs/rnd-department.md`
+- Creative tool catalog: `docs/creative-tool-catalog.md`
 - Tech stack & infra: `docs/tech-stack-and-infra.md`
 - External service setup (Sentry/PostHog): `docs/service-setup.md`
 - Team workflow design: `docs/team-workflow-design.md`

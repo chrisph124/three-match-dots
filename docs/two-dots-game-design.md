@@ -7,6 +7,17 @@
 adjacency is 8-way, the board is 6×6 with 3 colors, chains clear at ≥3, a straight run of ≥5 also
 sweeps the color, a deadlocked board reshuffles, and endless mode has no fail state or game-over
 screen.
+
+**Superseded by** `docs/three-dots-game-design.md` — the current design authority, covering both
+the shipped Endless mode and the in-progress Journey vertical slice. This document is kept as
+history; do not extend it.
+
+**Tombstone — Swift/SpriteKit pivot reversed:** between this doc and `docs/three-dots-game-design.md`
+the project briefly evaluated a native Swift + SpriteKit rewrite. That evaluation and its design doc
+live only on branch `archive/swift-pivot-260816` (`docs/native-swift-pivot-design.md`); the pivot was
+reversed and the project returned to the React Native stack described in `CLAUDE.md`. The archived
+branch is history, not a current design authority.
+
 **Working title:** TBD (slug: `two-dots-rn-game`)
 
 ---
