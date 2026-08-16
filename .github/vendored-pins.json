@@ -1,0 +1,7 @@
+{
+  "note": "Vetted SHA pins for the auto-loading vendored agent/skill plugins under .tessl/plugins/. These skills load into every agent session, so a pin change is a supply-chain event. CI (scripts/check-vendored-pins.mjs) fails if a manifest's version drifts from the value recorded here. Re-vet and update docs/security-and-supply-chain.md before bumping a pin.",
+  "pins": {
+    ".tessl/plugins/softaworks/agent-toolkit": "3027f20f3181758385a1bb8c022d4041dfb4de84",
+    ".tessl/plugins/vercel-labs/json-render": "9d3dfc8917c1c6aa5568acbe0969523f3307376c"
+  }
+}

@@ -1,0 +1,14 @@
+# gitleaks config — extends the default ruleset, scopes out known false
+# positives. gitleaks runs in CI (gitleaks/gitleaks-action) as the enforcement
+# backstop and as a presence-gated pre-commit hook (.husky/pre-commit).
+# See docs/security-and-supply-chain.md for the secret-hygiene policy.
+title = "three-match-dots gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated lockfile content trips high-entropy heuristics but holds no secrets."
+paths = [
+  '''package-lock\.json''',
+]

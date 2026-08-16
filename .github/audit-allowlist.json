@@ -1,0 +1,4 @@
+{
+  "note": "npm-audit advisory source ids triaged as build-time-only (not reachable in the shipped RN/Skia bundle). CI (scripts/check-audit.mjs) fails only when a NEW source id appears beyond this set — pre-existing build-time advisories stay informational. Triage evidence lives in docs/security-and-supply-chain.md; refresh both together whenever this list changes.",
+  "allowedAdvisoryIds": [1119441, 1138808, 1138809, 1139427]
+}

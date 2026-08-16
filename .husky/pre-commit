@@ -1,1 +1,10 @@
+# gitleaks secret scan — presence-gated so a fresh clone without the Go binary
+# can still commit (gitleaks is not an npm dep resolvable via npx). CI
+# (gitleaks-action) is the enforcement backstop. Install: brew install gitleaks
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --no-banner || exit 1
+else
+  echo "gitleaks not installed — skipping local secret scan (CI enforces). Install: brew install gitleaks"
+fi
+
 npx lint-staged
