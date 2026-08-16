@@ -1,0 +1,2 @@
+- [Palette-extension residual risk (Decision C)](project_three-dots-retarget-palette-risk.md) — accessibility/index-stability gaps not yet in plan text, found 2026-08-16
+- [Plan review workflow for this project](project_plan-review-workflow.md) — how validate/red-team rounds + kongming go/no-go fit together in plan.md
