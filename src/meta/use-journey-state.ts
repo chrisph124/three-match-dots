@@ -124,7 +124,18 @@ export function useJourneyState({ level, layout, anim, chainState }: Options) {
     }
     const { offsetX, offsetY } = buildMoveOffsets({ moves }, layout, cellCount);
     publish(settled);
-    playMove(anim, offsetX, offsetY, SHUFFLE_MS, () => unlock(chainState));
+    // Re-check status at fire time, same as the FALL_MS→settle and commit
+    // null-branch paths: the countdown can flip the run to 'lost' during this
+    // ~SHUFFLE_MS reshuffle window, in which case the status effect now owns the
+    // lock — unlocking here would stomp it back open on a finished board. (The
+    // moves===0 branch above unlocks synchronously right after the top guard, so
+    // no time elapses there.) Endless's twin line needs no guard — it has no
+    // terminal state.
+    playMove(anim, offsetX, offsetY, SHUFFLE_MS, () => {
+      if (latest.current.status === 'playing') {
+        unlock(chainState);
+      }
+    });
   }, [anim, cellCount, chainState, layout, publish]);
 
   const applyAndDrop = useCallback(
