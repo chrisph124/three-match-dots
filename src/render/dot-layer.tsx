@@ -1,13 +1,37 @@
 import { Circle } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 import type { BoardAnimation } from '../effects/use-board-animation';
-import { STAGGER_SPAN } from '../effects/use-board-animation';
+import { MERGE_STAGGER, STAGGER_SPAN } from '../effects/use-board-animation';
 import type { Board } from '../core/types';
 import { centerX, centerY, type BoardLayout } from './geometry';
 import { colorFor, DOT_RADIUS_RATIO } from './palette';
 
 /** How much a dot swells while its colour is armed for a sweep. */
 const HIGHLIGHT_SCALE = 1.12;
+
+/**
+ * Shared merge-lerp core for both axes, so the stagger/easing formula lives in
+ * exactly one place and `cx`/`cy` can never drift apart. Returns `base`
+ * untouched when the cell is not merging (`rank < 0`) or is the anchor/terminal
+ * (`target < 0`); otherwise eases the dot from `base` toward `targetCenter`,
+ * staggered by `rank`.
+ */
+function mergeAxis(
+  base: number,
+  targetCenter: number,
+  rank: number,
+  target: number,
+  mergeT: number,
+  mergeSpan: number,
+): number {
+  'worklet';
+  if (rank < 0 || target < 0) {
+    return base;
+  }
+  const start = (rank / mergeSpan) * MERGE_STAGGER;
+  const local = Math.min(Math.max((mergeT - start) / (1 - MERGE_STAGGER), 0), 1);
+  return base + (targetCenter - base) * local;
+}
 
 type DotProps = {
   readonly cell: number;
@@ -17,12 +41,30 @@ type DotProps = {
 };
 
 function Dot({ cell, colorId, layout, anim }: DotProps) {
-  const cx = useDerivedValue(
-    () => centerX(cell, layout) + anim.offsetX.value[cell] * (1 - anim.moveT.value),
-  );
-  const cy = useDerivedValue(
-    () => centerY(cell, layout) + anim.offsetY.value[cell] * (1 - anim.moveT.value),
-  );
+  const cx = useDerivedValue(() => {
+    const base = centerX(cell, layout) + anim.offsetX.value[cell] * (1 - anim.moveT.value);
+    const target = anim.mergeTarget.value[cell];
+    return mergeAxis(
+      base,
+      centerX(target, layout),
+      anim.mergeRank.value[cell],
+      target,
+      anim.mergeT.value,
+      anim.mergeSpan.value,
+    );
+  });
+  const cy = useDerivedValue(() => {
+    const base = centerY(cell, layout) + anim.offsetY.value[cell] * (1 - anim.moveT.value);
+    const target = anim.mergeTarget.value[cell];
+    return mergeAxis(
+      base,
+      centerY(target, layout),
+      anim.mergeRank.value[cell],
+      target,
+      anim.mergeT.value,
+      anim.mergeSpan.value,
+    );
+  });
   const radius = useDerivedValue(() => {
     // `-1` is also `EMPTY` in the `Color` domain (src/core/types.ts), so the
     // idle "no highlight armed" sentinel must not be allowed to match a hole.

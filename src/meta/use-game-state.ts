@@ -8,8 +8,10 @@ import type { Board, GameState, Resolution } from '../core/types';
 import {
   FALL_MS,
   playClear,
+  playMerge,
   playMove,
   resetClear,
+  resetMerge,
   SHUFFLE_MS,
   type BoardAnimation,
 } from '../effects/use-board-animation';
@@ -25,6 +27,8 @@ type Options = {
   readonly initialScore?: number;
   /** Called whenever the score changes. Task 20 supplies the persister. */
   readonly onScoreChange?: (score: number) => void;
+  /** OS "Reduce Motion" state; when true, commit skips the chain-merge tween. */
+  readonly reduceMotion?: boolean;
 };
 
 const CELL_COUNT = DEFAULT_CONFIG.rows * DEFAULT_CONFIG.cols;
@@ -54,6 +58,7 @@ export function useGameState({
   chainState,
   initialScore = 0,
   onScoreChange,
+  reduceMotion = false,
 }: Options) {
   const [state, setState] = useState<GameState>(() => ({
     ...newGame(DEFAULT_CONFIG, Date.now() >>> 0),
@@ -64,6 +69,15 @@ export function useGameState({
   // Only `publish` ever calls `setState`, and it updates this ref in the same
   // breath, so `latest.current` never needs a separate render-time sync.
   const latest = useRef(state);
+
+  // Read from a ref inside `commit` so a mid-session Reduce Motion toggle takes
+  // effect without re-creating `commit` (which would rebuild the gesture). The
+  // ref is written only inside an effect, never during render — the same
+  // pattern as `seeded` below and the React Compiler `react-hooks/refs` rule.
+  const reduceMotionRef = useRef(reduceMotion);
+  useEffect(() => {
+    reduceMotionRef.current = reduceMotion;
+  }, [reduceMotion]);
 
   const publish = useCallback(
     (next: GameState) => {
@@ -114,6 +128,7 @@ export function useGameState({
         CELL_COUNT,
       );
       resetClear(anim);
+      resetMerge(anim);
       publish(next);
       playMove(anim, offsetX, offsetY, FALL_MS, () => settle(next));
     },
@@ -127,7 +142,14 @@ export function useGameState({
         unlock(chainState);
         return;
       }
-      playClear(anim, resolution.cleared, () => applyAndDrop(resolution));
+      const clearThenDrop = () =>
+        playClear(anim, resolution.cleared, () => applyAndDrop(resolution));
+      // Reduce Motion: skip the chase->merge, land straight on today's pop path.
+      if (reduceMotionRef.current) {
+        clearThenDrop();
+        return;
+      }
+      playMerge(anim, chain, resolution.cleared, clearThenDrop);
     },
     [anim, applyAndDrop, chainState],
   );

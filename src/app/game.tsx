@@ -4,6 +4,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { DEFAULT_CONFIG } from '../core/config';
 import { useBoardAnimation } from '../effects/use-board-animation';
+import { useReduceMotion } from '../effects/use-reduce-motion';
 import { useBoardGesture, useChainState } from '../input/use-board-gesture';
 import { readScore, writeScore } from '../meta/score-storage';
 import { useGameState } from '../meta/use-game-state';
@@ -23,12 +24,14 @@ export default function GameScreen() {
   const anim = useBoardAnimation(CELL_COUNT);
   const chainState = useChainState(new Array<number>(CELL_COUNT).fill(0));
   const initialScore = useMemo(() => readScore(), []);
+  const reduceMotion = useReduceMotion();
   const game = useGameState({
     layout,
     anim,
     chainState,
     initialScore,
     onScoreChange: writeScore,
+    reduceMotion,
   });
 
   const gesture = useBoardGesture({
