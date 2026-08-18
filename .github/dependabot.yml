@@ -42,6 +42,20 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
+    # Major bumps of the ESLint + TypeScript toolchain are owned by the Expo SDK
+    # preset (`eslint-config-expo`, pinned to SDK 57): a standalone major breaks
+    # `expo lint` — TS 7 removes internals `@typescript-eslint` reads, ESLint 10
+    # changes the import-resolver interface. These majors land only with an Expo
+    # SDK upgrade via `npx expo install`, never as standalone Dependabot PRs.
+    # Minor/patch still flow through the dev-tooling group above.
+    # See docs/security-and-supply-chain.md.
+    ignore:
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'eslint-*'
+        update-types: ['version-update:semver-major']
 
   # ── GitHub Actions ───────────────────────────────────────────────────────
   - package-ecosystem: 'github-actions'
