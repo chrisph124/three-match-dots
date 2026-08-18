@@ -6,6 +6,7 @@ import { resolveChain } from '../core/resolve/resolve-chain';
 import { shuffleBoard } from '../core/shuffle';
 import type { Board, GameState, Resolution } from '../core/types';
 import {
+  BOUNCE_RATIO,
   FALL_MS,
   playClear,
   playMerge,
@@ -114,7 +115,7 @@ export function useGameState({
       const shuffled = shuffleBoard(next.board, next.config, next.rngState);
       const { offsetX, offsetY } = buildMoveOffsets({ moves: shuffled.moves }, layout, CELL_COUNT);
       publish({ ...next, board: shuffled.board, rngState: shuffled.rngState });
-      playMove(anim, offsetX, offsetY, SHUFFLE_MS, () => unlock(chainState));
+      playMove(anim, offsetX, offsetY, SHUFFLE_MS, 0, () => unlock(chainState));
     },
     [anim, chainState, layout, publish],
   );
@@ -130,7 +131,8 @@ export function useGameState({
       resetClear(anim);
       resetMerge(anim);
       publish(next);
-      playMove(anim, offsetX, offsetY, FALL_MS, () => settle(next));
+      const bouncePx = reduceMotionRef.current ? 0 : layout.cellSize * BOUNCE_RATIO;
+      playMove(anim, offsetX, offsetY, FALL_MS, bouncePx, () => settle(next));
     },
     [anim, layout, publish, settle],
   );
@@ -142,14 +144,14 @@ export function useGameState({
         unlock(chainState);
         return;
       }
-      const clearThenDrop = () =>
-        playClear(anim, resolution.cleared, () => applyAndDrop(resolution));
-      // Reduce Motion: skip the chase->merge, land straight on today's pop path.
+      // Reduce Motion: skip the relay, land straight on today's staggered pop.
+      // Default path: the relay folds the pop into each hop, so its `onDone`
+      // drives `applyAndDrop` directly — there is no separate `playClear` step.
       if (reduceMotionRef.current) {
-        clearThenDrop();
+        playClear(anim, resolution.cleared, () => applyAndDrop(resolution));
         return;
       }
-      playMerge(anim, chain, resolution.cleared, clearThenDrop);
+      playMerge(anim, chain, resolution.cleared, () => applyAndDrop(resolution));
     },
     [anim, applyAndDrop, chainState],
   );
