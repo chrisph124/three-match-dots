@@ -131,7 +131,7 @@ export function useJourneyState({ level, layout, anim, chainState }: Options) {
     // moves===0 branch above unlocks synchronously right after the top guard, so
     // no time elapses there.) Endless's twin line needs no guard — it has no
     // terminal state.
-    playMove(anim, offsetX, offsetY, SHUFFLE_MS, () => {
+    playMove(anim, offsetX, offsetY, SHUFFLE_MS, 0, () => {
       if (latest.current.status === 'playing') {
         unlock(chainState);
       }
@@ -148,7 +148,7 @@ export function useJourneyState({ level, layout, anim, chainState }: Options) {
       );
       resetClear(anim);
       publish(next);
-      playMove(anim, offsetX, offsetY, FALL_MS, settle);
+      playMove(anim, offsetX, offsetY, FALL_MS, 0, settle);
     },
     [anim, cellCount, layout, publish, settle],
   );

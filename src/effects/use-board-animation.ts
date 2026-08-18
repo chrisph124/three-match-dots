@@ -9,11 +9,29 @@ export const SHUFFLE_MS = 260;
 /** Fraction of the clear timeline spent staggering starts, not shrinking. */
 export const STAGGER_SPAN = 0.5;
 
-/** Duration of the pre-clear chase->merge, in ms. Tunable on device. */
-export const MERGE_MS = 110;
+/**
+ * Chain-merge relay cadence, in wall-clock ms (converted to normalised
+ * fractions once per commit in `playMerge`). Absolute ms reads consistently
+ * regardless of chain length, unlike a pure proportional scheme. Tunable on
+ * device.
+ *
+ * - `MERGE_STEP_MS`   per-rank onset delay — the "wave" spacing between hops.
+ * - `MERGE_TRAVEL_MS` one hop's travel+fade window.
+ * - `MERGE_MS_MAX`    hard clamp on the whole relay (len 6 ~= 160 + 5*60 = 460ms).
+ */
+export const MERGE_STEP_MS = 60;
+export const MERGE_TRAVEL_MS = 160;
+export const MERGE_MS_MAX = 500;
 
-/** Fraction of the merge timeline spent staggering starts, not travelling. */
-export const MERGE_STAGGER = 0.5;
+/**
+ * Drop-bounce overshoot as a fraction of `cellSize`. A settling dot overshoots
+ * its resting cell by `cellSize * BOUNCE_RATIO` px then springs back — a FIXED
+ * px amount, independent of fall distance, so a one-cell and a five-cell drop
+ * bounce the same and none can dip into a neighbour's cell. Endless drops only;
+ * the caller passes 0 under Reduce Motion and for every non-drop move. Tunable
+ * on device.
+ */
+export const BOUNCE_RATIO = 0.09;
 
 export type BoardAnimation = {
   /** Per-cell pixel offset a dot is drawn at when moveT is 0. */
@@ -31,10 +49,14 @@ export type BoardAnimation = {
   readonly mergeRank: SharedValue<number[]>;
   /** Per-cell target cell whose static centre a merging dot chases; -1 = stay. */
   readonly mergeTarget: SharedValue<number[]>;
-  /** Chain length the merge stagger normalises against; never 0. */
-  readonly mergeSpan: SharedValue<number>;
-  /** 0 -> 1 across the whole merge, stagger included. */
+  /** Normalised per-rank onset delay for the merge relay (step/total). */
+  readonly mergeStep: SharedValue<number>;
+  /** Normalised single-hop travel+fade window for the merge relay. */
+  readonly mergeTravel: SharedValue<number>;
+  /** 0 -> 1 across the whole merge relay, stagger included. */
   readonly mergeT: SharedValue<number>;
+  /** Drop-bounce overshoot amplitude in px; 0 disables (non-drop moves, RM). */
+  readonly bounce: SharedValue<number>;
   /** Colour id to emphasise while a sweep is armed; -1 means none. */
   readonly highlight: SharedValue<number>;
 };
@@ -48,8 +70,10 @@ export function useBoardAnimation(cellCount: number): BoardAnimation {
   const clearT = useSharedValue(0);
   const mergeRank = useSharedValue<number[]>(new Array(cellCount).fill(-1));
   const mergeTarget = useSharedValue<number[]>(new Array(cellCount).fill(-1));
-  const mergeSpan = useSharedValue(1);
+  const mergeStep = useSharedValue(0);
+  const mergeTravel = useSharedValue(0);
   const mergeT = useSharedValue(0);
+  const bounce = useSharedValue(0);
   const highlight = useSharedValue(-1);
 
   // Every shared value above keeps the same identity across re-renders of
@@ -68,8 +92,10 @@ export function useBoardAnimation(cellCount: number): BoardAnimation {
       clearT,
       mergeRank,
       mergeTarget,
-      mergeSpan,
+      mergeStep,
+      mergeTravel,
       mergeT,
+      bounce,
       highlight,
     }),
     [],
@@ -115,10 +141,20 @@ export function resetClear(anim: BoardAnimation): void {
 }
 
 /**
- * Chases the linked dots into their collapse point before the pop. Each chain
- * dot travels toward the next chain dot's static centre, staggered first->last;
- * on a sweep (>=5 line / 2x2 loop) the extra cleared dots that were never in
- * the drawn chain all rush toward the terminal cell (`chain[len-1]`) too.
+ * Collapses the linked dots as a first->last relay with the pop folded in. Each
+ * chain dot travels toward the next chain dot's static centre and fades to
+ * nothing over the tail of that same hop, staggered by rank so the hops read in
+ * order (0->1, then 1->2, ...). The terminal dot (`chain[len-1]`) holds its
+ * place and fades last as the finale beat. On a sweep (>=5 line / 2x2 loop) the
+ * extra cleared dots that were never in the drawn chain rush toward the terminal
+ * cell co-timed with that finale (rank `len-1`), so the whole colour collapses
+ * to one point and pops together.
+ *
+ * Cadence is two wall-clock constants (`MERGE_STEP_MS`, `MERGE_TRAVEL_MS`)
+ * clamped by `MERGE_MS_MAX`, converted here to normalised `mergeStep`/
+ * `mergeTravel` fractions so the dot-layer worklets stay pure arithmetic. The
+ * `step` formula shrinks the wave spacing only when a very long chain would blow
+ * the clamp, so the terminal beat always lands exactly at `mergeT = 1`.
  *
  * A cell's chain membership is read straight off its assigned rank: chain cells
  * get rank `0..len-1` in the loop below, so any cleared cell still at `-1`
@@ -145,21 +181,25 @@ export function playMerge(
   const terminal = chain[len - 1];
   cleared.forEach((cell) => {
     if (rank[cell.index] < 0) {
-      rank[cell.index] = len;
+      rank[cell.index] = len - 1;
       target[cell.index] = terminal;
     }
   });
+  const total = Math.min(MERGE_TRAVEL_MS + Math.max(len - 1, 0) * MERGE_STEP_MS, MERGE_MS_MAX);
+  const step = len > 1 ? Math.min(MERGE_STEP_MS, (MERGE_MS_MAX - MERGE_TRAVEL_MS) / (len - 1)) : 0;
   anim.mergeRank.value = rank;
   anim.mergeTarget.value = target;
-  anim.mergeSpan.value = Math.max(len, 1);
+  anim.mergeStep.value = step / total;
+  anim.mergeTravel.value = MERGE_TRAVEL_MS / total;
   anim.mergeT.value = 0;
   // Same single-tween-in-flight guarantee as `playClear`/`playMove`: the
   // gesture's `isResolving` lock blocks a second commit until this whole chain
   // unlocks, and the next write to `mergeT` is `resetMerge`, reachable only from
-  // `applyAndDrop` — itself only reachable from the `playClear` this `onDone`
-  // triggers. So at most one tween targeting `mergeT` is ever in flight and
-  // `onDone` cannot double-fire.
-  anim.mergeT.value = withTiming(1, { duration: MERGE_MS }, () => {
+  // `applyAndDrop` — itself only reachable from the `onDone` this tween fires. So
+  // at most one tween targeting `mergeT` is ever in flight and `onDone` cannot
+  // double-fire. `onDone` now drives `applyAndDrop` directly (the pop is folded
+  // into this relay), so there is no separate `playClear` hop on the default path.
+  anim.mergeT.value = withTiming(1, { duration: total }, () => {
     'worklet';
     runOnJS(onDone)();
   });
@@ -169,24 +209,28 @@ export function playMerge(
 export function resetMerge(anim: BoardAnimation): void {
   anim.mergeRank.value = new Array<number>(anim.mergeRank.value.length).fill(-1);
   anim.mergeTarget.value = new Array<number>(anim.mergeTarget.value.length).fill(-1);
-  anim.mergeSpan.value = 1;
+  anim.mergeStep.value = 0;
+  anim.mergeTravel.value = 0;
   anim.mergeT.value = 0;
 }
 
 /**
  * Places every dot at its start offset, then slides them all home together.
  * Offsets are set before moveT so a dot never renders at its destination for
- * a frame first.
+ * a frame first. `bouncePx` is the drop-bounce overshoot amplitude the falling
+ * dots settle with (see `BOUNCE_RATIO`); every non-drop caller passes 0.
  */
 export function playMove(
   anim: BoardAnimation,
   offsetX: number[],
   offsetY: number[],
   duration: number,
+  bouncePx: number,
   onDone: () => void,
 ): void {
   anim.offsetX.value = offsetX;
   anim.offsetY.value = offsetY;
+  anim.bounce.value = bouncePx;
   anim.moveT.value = 0;
   // Same unconditional-fire reasoning as `playClear`: the next write to
   // `moveT` (another `playMove` call, from `applyAndDrop` or `settle`) is
