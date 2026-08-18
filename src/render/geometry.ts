@@ -8,8 +8,9 @@ export type BoardLayout = {
   readonly touchRadius: number;
   /**
    * Top-left corner of the board within the canvas, in px. Stays `0` while the
-   * canvas is sized exactly to the board; a backdrop that enlarges the canvas
-   * sets it so the board can sit inset while hit-testing still resolves cells.
+   * canvas is sized exactly to the board; a caller that enlarges the canvas
+   * beyond the board sets it so the board can sit inset while hit-testing still
+   * resolves cells.
    */
   readonly originX: number;
   readonly originY: number;

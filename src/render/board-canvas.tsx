@@ -15,14 +15,18 @@ type BoardCanvasProps = {
 };
 
 /**
- * The canvas is exactly the board, so canvas coordinates and the geometry
- * module's coordinates are the same space — the gesture handler needs no
- * offset correction.
+ * Coordinate invariant: the canvas is sized exactly to the board and `layout`
+ * origin is (0,0), so canvas coordinates and the geometry module's coordinates
+ * are the same space — the gesture handler needs no offset correction. Both
+ * Endless (`game.tsx`) and Journey (`journey.tsx`) draw through this one path.
  */
 export function BoardCanvas({ board, layout, anim, chainState }: BoardCanvasProps) {
+  const boardWidth = layout.cellSize * layout.cols;
+  const boardHeight = layout.cellSize * layout.rows;
+
   const style = useMemo(
-    () => ({ width: layout.cellSize * layout.cols, height: layout.cellSize * layout.rows }),
-    [layout.cellSize, layout.cols, layout.rows],
+    () => ({ width: boardWidth, height: boardHeight }),
+    [boardWidth, boardHeight],
   );
 
   return (
@@ -34,6 +38,8 @@ export function BoardCanvas({ board, layout, anim, chainState }: BoardCanvasProp
         layout={layout}
         anim={anim}
       />
+      {/* Dead-flat discs on the dark `SCREEN_BACKGROUND` in both modes; the frozen
+          fills clear contrast on the dark ground, and identity is colour alone. */}
       <DotLayer board={board} layout={layout} anim={anim} />
     </Canvas>
   );

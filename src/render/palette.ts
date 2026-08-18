@@ -9,9 +9,12 @@
  * distinct from the red/green/blue already in use. The level parser caps a level's
  * `colors` at this array's length (see src/core/level/level-script.ts).
  *
- * NOTE: hue distinguishes colours but the creative bible's LOCKED "identity =
- * colour + shape, never colour alone" rule is NOT yet met — dot-layer.tsx draws
- * plain circles. Shape/pattern differentiation is a known deferred gap.
+ * NOTE: hue is the ONLY thing that distinguishes colours — dots are dead-flat
+ * solid discs in both modes. The creative bible's LOCKED "identity = colour AND
+ * shape/pattern, never colour alone" rule is therefore UNMET, exactly as in the
+ * shipped app. This is an accepted, documented accessibility gap; never cite it
+ * as satisfied in store or compliance copy. On the dark ground both modes sit on,
+ * every frozen hue still clears WCAG contrast (`contrast.test.ts`).
  */
 export const DOT_COLORS = [
   '#ff4d5e', // 0 R              (frozen — Endless)
