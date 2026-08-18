@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# per-agent runtime memory (local scratch, not a project deliverable)
+.claude/agent-memory/

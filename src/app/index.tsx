@@ -21,6 +21,9 @@ export default function TitleScreen() {
       <Link href="/game" style={styles.link}>
         Play
       </Link>
+      <Link href="/journey" style={styles.link}>
+        Journey
+      </Link>
       <Link href="/settings" style={styles.link}>
         Settings
       </Link>

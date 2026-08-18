@@ -87,3 +87,54 @@ describe('spawnOffsetY', () => {
     expect(spawnOffsetY(0, 4, layout)).toBe(-40);
   });
 });
+
+describe('board origin', () => {
+  // Same 4x4/10px board, shifted 20px right and 40px down inside a larger canvas.
+  const shifted = makeLayout(4, 4, 40, 0.4, 20, 40);
+
+  it('records the origin on the layout', () => {
+    expect(shifted.originX).toBe(20);
+    expect(shifted.originY).toBe(40);
+    expect(shifted.cellSize).toBe(10); // origin does not change cell sizing
+  });
+
+  it('defaults the origin to (0,0) when omitted', () => {
+    expect(layout.originX).toBe(0);
+    expect(layout.originY).toBe(0);
+  });
+
+  it('offsets every cell centre by the origin', () => {
+    expect(centerX(0, shifted)).toBe(25); // 20 + 5
+    expect(centerY(0, shifted)).toBe(45); // 40 + 5
+    expect(centerX(5, shifted)).toBe(35); // 20 + 15 (row 1, col 1)
+    expect(centerY(5, shifted)).toBe(55); // 40 + 15
+    expect(centerX(15, shifted)).toBe(55); // 20 + 35 (row 3, col 3)
+    expect(centerY(15, shifted)).toBe(75); // 40 + 35
+  });
+
+  it('hit-tests against the origin-shifted centres', () => {
+    expect(cellAtPoint(25, 45, shifted)).toBe(0); // shifted centre of cell 0
+    expect(cellAtPoint(55, 45, shifted)).toBe(3); // shifted centre of cell 3
+    expect(cellAtPoint(35, 65, shifted)).toBe(9); // row 2, col 1
+  });
+
+  it('returns -1 just outside the shifted board rectangle', () => {
+    expect(cellAtPoint(19, 45, shifted)).toBe(-1); // 1px left of the board
+    expect(cellAtPoint(25, 39, shifted)).toBe(-1); // 1px above the board
+    expect(cellAtPoint(65, 45, shifted)).toBe(-1); // past the right edge
+    expect(cellAtPoint(25, 85, shifted)).toBe(-1); // past the bottom edge
+  });
+
+  it('no longer hits a point that only worked at origin (0,0)', () => {
+    // (5,5) is cell 0's centre in the default layout, but sits off the
+    // shifted board entirely -> proves hit-testing tracks the origin.
+    expect(cellAtPoint(5, 5, layout)).toBe(0);
+    expect(cellAtPoint(5, 5, shifted)).toBe(-1);
+  });
+
+  it('leaves move/spawn deltas unchanged (origin cancels)', () => {
+    expect(moveOffsetY(2, 10, shifted)).toBe(-20);
+    expect(moveOffsetX(0, 3, shifted)).toBe(-30);
+    expect(spawnOffsetY(0, 2, shifted)).toBe(-20);
+  });
+});

@@ -1,25 +1,49 @@
 version: 2
 updates:
-  # JS/TS dependencies (activates once package.json exists)
-  - package-ecosystem: "npm"
-    directory: "/"
+  # ── npm ──────────────────────────────────────────────────────────────────
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
+      - 'dependencies'
     groups:
-      # Batch low-risk updates into one PR to cut noise
-      dev-and-minor:
+      # Expo SDK 57 owns ONE mutually-compatible native pin set (Skia ↔
+      # Reanimated ↔ Gesture Handler ↔ Worklets ↔ RN ↔ React). Bumping one in
+      # isolation breaks the set, so these move together and are NEVER
+      # auto-merged — upgrade only via `npx expo install --fix`. Grouped so
+      # Dependabot proposes them in a single, review-only PR.
+      # See docs/security-and-supply-chain.md.
+      expo-native:
+        patterns:
+          - 'expo'
+          - 'expo-*'
+          - 'react'
+          - 'react-dom'
+          - 'react-native'
+          - 'react-native-*'
+          - '@shopify/react-native-skia'
+      # Dev tooling — low-risk, batched into one PR to cut noise.
+      dev-tooling:
+        patterns:
+          - '@types/*'
+          - 'eslint'
+          - 'eslint-*'
+          - 'prettier'
+          - 'typescript'
+          - 'vitest'
+          - 'husky'
+          - 'lint-staged'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
 
-  # Keep GitHub Actions versions current
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  # ── GitHub Actions ───────────────────────────────────────────────────────
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     labels:
-      - "dependencies"
-      - "github-actions"
+      - 'dependencies'
+      - 'github-actions'
