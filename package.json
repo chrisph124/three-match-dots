@@ -27,7 +27,7 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "@vitest/coverage-v8": "^4.1.10",
-    "eslint": "^9.39.5",
+    "eslint": "^10.8.1",
     "eslint-config-expo": "~57.0.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-sonarjs": "^4.2.0",
