@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.1",
     "eslint-config-prettier": "^10.1.8",
@@ -45,6 +46,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "coverage:diff": "node scripts/check-coverage.mjs",
     "audit:diff": "node scripts/check-audit.mjs",
     "vendored:check": "node scripts/check-vendored-pins.mjs",
     "postinstall": "patch-package",

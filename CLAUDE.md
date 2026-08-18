@@ -47,19 +47,26 @@ Native (Swift+Kotlin) = 2 codebases; Unity = overkill for simple 2D. No web vers
 the JS↔native bridge — that bridge is the classic cause of RN game jank. Entity count is tiny
 (~36–64 dots), no physics sim beyond falling tweens, no 3D, no networking.
 
+**3D / three.js (on-demand — NOT installed):** `three`, `@react-three/fiber`, `@react-three/drei`
+are not dependencies. Reading their docs (context7) is fine anytime; install them ONLY when a task
+actually needs 3D, and only via `npx expo install` so the SDK picks compatible `expo-gl` / `expo-three`.
+**Skia stays the primary renderer — three.js does not replace it.** Once installed, treat these as part
+of the Expo/native pin set: never auto-merged, realigned only by `expo install --fix` (see
+`docs/security-and-supply-chain.md` § The Expo/native pin set).
+
 ## Infrastructure (decided — wired at scaffold)
 
-| Area            | Choice                                                                                                                |
-| --------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Build / release | **EAS Build + EAS Submit** → TestFlight (iOS), Google Play (Android phase)                                            |
-| Crash reporting | **Sentry** (`@sentry/react-native`)                                                                                   |
-| Analytics       | **PostHog** — privacy-friendly; no IDFA → avoids iOS ATT prompt; EU-hosting option                                    |
-| OTA updates     | **`expo-updates`** (`eas update`) — push JS-only fixes without a store review                                         |
-| Code quality    | **`eslint-plugin-sonarjs`** (SonarLint rules) — local + CI, free. No SonarCloud SaaS (redundant).                     |
-| Security scan   | **CodeQL** (`.github/workflows/codeql.yml`) + **Dependabot** (`.github/dependabot.yml`) — active, free on public repo |
-| CI              | **GitHub Actions**: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest core — ONE workflow at scaffold        |
-| Git hooks       | **Husky + lint-staged** (wired at scaffold)                                                                           |
-| Backend         | **None for v1** — Sentry/PostHog are 3rd-party SaaS, not our servers                                                  |
+| Area            | Choice                                                                                                                                                         |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build / release | **EAS Build + EAS Submit** → TestFlight (iOS), Google Play (Android phase)                                                                                     |
+| Crash reporting | **Sentry** (`@sentry/react-native`)                                                                                                                            |
+| Analytics       | **PostHog** — privacy-friendly; no IDFA → avoids iOS ATT prompt; EU-hosting option                                                                             |
+| OTA updates     | **`expo-updates`** (`eas update`) — push JS-only fixes without a store review                                                                                  |
+| Code quality    | **`eslint-plugin-sonarjs`** (SonarLint rules) — local + CI, free. No SonarCloud SaaS (redundant).                                                              |
+| Security scan   | **CodeQL** (`.github/workflows/codeql.yml`) + **Dependabot** (`.github/dependabot.yml`) — active, free on public repo                                          |
+| CI              | **GitHub Actions** (`ci.yml`): `quality` job = lint (sonarjs) + typecheck (strict) + Vitest + coverage/audit/vendored diff-gates; `secret-scan` job = gitleaks |
+| Git hooks       | **Husky + lint-staged** (wired at scaffold)                                                                                                                    |
+| Backend         | **None for v1** — Sentry/PostHog are 3rd-party SaaS, not our servers                                                                                           |
 
 **Privacy/compliance:** analytics requires App Store Privacy Nutrition Labels + Google Play Data Safety
 disclosures (PostHog keeps this minimal). Keep Sentry/PostHog keys OUT of git (use EAS secrets / env).
@@ -145,6 +152,13 @@ track needed.
   (e.g. genuinely untyped 3rd-party lib). No silent `any`.
 - **Lint clean — SonarLint rules.** Follow SonarLint via `eslint-plugin-sonarjs` (code smells,
   cognitive complexity). Lint errors block commit, push, and CI.
+- **No secrets in git (no-leak policy).** Never commit keys, tokens, API secrets, `.env` files, or
+  credentials — runtime keys live in EAS secrets / env, never the repo. Enforcement is gitleaks: the
+  `.husky/pre-commit` hook (local, `--no-verify`-bypassable) plus the `secret-scan` CI job, which runs
+  on every PR and becomes a **merge-blocking required check once branch protection is enabled**
+  (pending owner action — see Team Workflow § Enforcement). Scope a false positive in `.gitleaks.toml`
+  (path or rule); never disable the hook wholesale. Full policy:
+  `docs/security-and-supply-chain.md` § Secret scanning.
 
 ## Definition of Done (every scaffold / bug fix / feature)
 
@@ -155,7 +169,16 @@ A change is NOT done until ALL hold:
      so it can never silently return. Pairs with `superpowers:systematic-debugging`.
    - RN / Skia / gesture layers (not Vitest-testable) → verify on-device instead.
 2. **Code review** run via `superpowers:requesting-code-review` before merge.
-3. **Lint + typecheck + tests all green** (the CI-blocking standards above).
+3. **Lint + typecheck + tests + coverage all green:** `npm run lint`, `npm run typecheck`, `npm test`,
+   and `npm run coverage:diff` (the coverage diff-gate — fails on a drop below the committed baseline;
+   see `docs/security-and-supply-chain.md` § Coverage). These are the CI-blocking standards above.
+4. **Pre-PR checklist** — before pushing a commit or opening a PR, re-run the four commands in (3),
+   confirm the code review (2) landed, and red-team the diff for leaked keys / tokens / `.env`. The CI
+   checks (`quality` + `secret-scan`) run on every PR and become **merge-blocking required checks once
+   branch protection is enabled** (pending owner action — see Team Workflow § Enforcement); the gitleaks
+   pre-commit hook is a local backstop. The local session prompt (`.claude/settings.local.json`) and
+   this manual red-team are a **reminder, not enforcement** — a green local run does not replace the CI
+   checks on the PR.
 
 ## Commit & PR Conventions
 
@@ -203,25 +226,57 @@ After a bug fix or review, ask: **is this lesson reusable / will it recur?**
   `.claude/skills/README.md` for the template.
 - **No (one-off)** → note it in the PR description / commit message. Do NOT author a skill.
 
-### Enforcement (Husky + CI active; branch protection unverified)
+### Where work-artifacts live (one home per artifact type)
 
-- **Husky + lint-staged**: pre-commit lints staged files; pre-push runs typecheck + unit tests.
-  Auto-installs on `npm install` once `package.json` exists.
-- **GitHub Actions CI**: lint + typecheck + unit tests on every PR.
-- **Branch protection** (repo owner sets on GitHub): require CI green + 1 approval before merge —
-  this is what forces step 5.
+Every stateful record has exactly one home. Each folder's `README.md` is the authority for its own
+naming; don't scatter copies across `docs/`. `docs/` holds evergreen authority only (see Key References).
+
+| Artifact                       | Home                                       | Naming                         |
+| ------------------------------ | ------------------------------------------ | ------------------------------ |
+| Plan (index + phases)          | `plans/<YYMMDD-HHMM-slug>/`                | `plan.md` + `phase-NN-*.md`    |
+| Brainstorm / design contract   | `plans/brainstorms/`                       | `YYMMDD-HHMM-<slug>.md`        |
+| Report (progress/audit/review) | `plans/reports/` (`_archive/` once landed) | `<type>-YYMMDD-HHMM-<slug>.md` |
+| Journal                        | `plans/journals/`                          | `YYYY-MM-DD-<slug>.md`         |
+| Lesson-learned (one-off)       | `plans/lessons-learned/`                   | `YYMMDD-HHMM-<slug>.md`        |
+| Reusable lesson                | `.claude/skills/<slug>/SKILL.md`           | promote via step 6             |
+
+### Enforcement (Husky + CI active; branch protection is a pending owner action)
+
+- **Husky + lint-staged**: pre-commit lints staged files and runs `gitleaks protect --staged` (when
+  the binary is present); pre-push runs typecheck + unit tests. Auto-installs on `npm install`.
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): the `quality` job runs lint + typecheck + unit
+  tests + the coverage / audit / vendored-pin diff-gates; the `secret-scan` job runs gitleaks. Both on
+  every PR.
+- **Branch protection** (repo owner sets on GitHub — not automated here): require the `quality` and
+  `secret-scan` checks to pass before merge. This repo runs the **solo flow**
+  (`required_approving_review_count: 0` — self-merge allowed once checks pass); raise it to `1` when a
+  second reviewer joins. `main` is currently unprotected — enabling it is the documented owner action
+  in `docs/security-and-supply-chain.md` § Branch protection, and it is the precondition that makes the
+  Dependabot auto-merge workflow safe to activate.
 
 ## Key References
 
+**Docs are synchronized — one home per concern, plus an index.** Start at `docs/project-bible.md`, the
+docs index that routes to every concern. When a change touches architecture, the codebase, a feature, or
+a visual style — OR edits `docs/game-scripts/` — update the owning docs in the **same change**: the
+technical reference (`docs/tech-stack-and-infra.md`, the `src/` architecture map), the gameplay
+walkthrough (`docs/three-dots-gameplay-script.md`), and the bible index if a doc was added or a concern
+renamed. Cross-link; don't duplicate. `docs/creative-bible.md` is LOCKED (look/feel) — change it
+deliberately, not as a side effect.
+
+- Docs index / bible (start here): `docs/project-bible.md`
 - Game design (current authority): `docs/three-dots-game-design.md`
+- Gameplay walkthrough (Endless, current): `docs/three-dots-gameplay-script.md`
 - Game design (superseded, kept for history): `docs/two-dots-game-design.md`
 - Creative bible (look, tone, LOCKED rules): `docs/creative-bible.md`
+- Game-scripts (creative pre-production content): `docs/game-scripts/index.md`
 - Level-script schema (Journey level contract): `docs/level-script-schema.md`
 - Monetization & expansion roadmap (deferred): `docs/monetization-and-roadmap.md`
 - Apple compliance checklist: `docs/apple-compliance-checklist.md`
 - RnD department (agent workflow for level/art authoring): `docs/rnd-department.md`
 - Creative tool catalog: `docs/creative-tool-catalog.md`
-- Tech stack & infra: `docs/tech-stack-and-infra.md`
+- Tech stack & infra (technical reference, `src/` architecture map): `docs/tech-stack-and-infra.md`
+- Security & supply chain (guardrails, gates, branch protection): `docs/security-and-supply-chain.md`
 - External service setup (Sentry/PostHog): `docs/service-setup.md`
 - Team workflow design: `docs/team-workflow-design.md`
 - Genre reference: Two Dots (Playdots/Zynga) — mechanic source of truth.

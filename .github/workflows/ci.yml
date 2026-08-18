@@ -22,6 +22,12 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      # Coverage diff-gate: measures the RN-free testable surface (same include
+      # as the test run) and fails only when coverage drops below the committed
+      # baseline (.github/coverage-baseline.json) beyond epsilon. The report is
+      # informational; the diff is the fail condition. See docs/security-and-supply-chain.md.
+      - run: npm run coverage
+      - run: npm run coverage:diff
       # Advisory-diff gate: fails only when a NEW npm-audit advisory id appears
       # beyond the triaged allowlist (.github/audit-allowlist.json). Pre-existing
       # build-time advisories stay informational. See docs/security-and-supply-chain.md.

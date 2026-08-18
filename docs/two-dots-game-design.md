@@ -3,7 +3,7 @@
 **Date:** 2026-06-17
 **Status:** Design approved (Approach A). Ready for `/ck:plan`.
 
-**Superseded in part by** `docs/superpowers/specs/2026-08-03-playable-game-design.md` (2026-08-03):
+**Superseded in part by** `plans/reports/_archive/superpowers/specs/2026-08-03-playable-game-design.md` (2026-08-03, archived):
 adjacency is 8-way, the board is 6×6 with 3 colors, chains clear at ≥3, a straight run of ≥5 also
 sweeps the color, a deadlocked board reshuffles, and endless mode has no fail state or game-over
 screen.

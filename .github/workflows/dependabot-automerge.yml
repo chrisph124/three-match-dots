@@ -1,0 +1,65 @@
+name: Dependabot auto-merge
+
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │ GATED — this workflow must NOT merge anything to `main` until BOTH the   │
+# │ branch protection and the two repo settings below are live. Authored now │
+# │ so the policy is reviewable and version-controlled; INERT until enabled. │
+# └─────────────────────────────────────────────────────────────────────────┘
+#
+# What it does: auto-approves and enables GitHub native auto-merge for LOW-RISK
+# Dependabot PRs only — the `dev-tooling` group at minor/patch. Auto-merge then
+# WAITS for the required status checks before completing.
+#
+# Why it is safe ONLY after branch protection: `gh pr merge --auto` waits on the
+# repo's REQUIRED status checks. With no branch protection there are no required
+# checks, so `--auto` has nothing to gate on and a bad dependency could land on
+# `main` unreviewed. Enabling protection (require `quality` + `secret-scan`) is a
+# documented owner action — see docs/security-and-supply-chain.md § Branch
+# protection. Until it is live, DO NOT rely on this workflow.
+#
+# Two repo settings the owner must ALSO enable (Settings → Actions → General →
+# Workflow permissions), or the approve step returns 403:
+#   1. "Allow auto-merge"
+#   2. "Allow GitHub Actions to create and approve pull requests"  (OFF by default)
+#
+# Scope is DELIBERATELY narrow (default-deny): only the `dev-tooling` group at
+# minor/patch is auto-merged. The Expo/native `expo-native` group and the whole
+# `github-actions` ecosystem are REVIEW-ONLY and never auto-merged here — the
+# native pin set moves only via `expo install --fix`, and pinned actions are
+# re-vetted by a human before any bump (docs/security-and-supply-chain.md).
+
+on: pull_request
+
+# No permissions at the workflow scope — grant the minimum at the job level only.
+permissions: {}
+
+jobs:
+  automerge:
+    # Only Dependabot's own PRs ever reach these steps; human PRs are ignored.
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    # Least privilege: exactly what "approve + enable auto-merge" require.
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Classify the update
+        id: meta
+        uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a # v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Default-deny gate: approve + auto-merge ONLY the dev-tooling group at
+      # minor or patch. Everything else — expo-native, github-actions, and ANY
+      # major bump — falls through untouched and waits for a human reviewer.
+      # (An ungrouped npm PR has an empty dependency-group, so it is excluded too.)
+      - name: Approve and enable auto-merge
+        if: ${{ steps.meta.outputs.dependency-group == 'dev-tooling' && (steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Pass the PR URL through env, never inline in run: — the standard
+          # guard against script injection from event payload fields.
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr review --approve "$PR_URL"
+          gh pr merge --auto --squash "$PR_URL"

@@ -1,10 +1,12 @@
 # Security & Supply Chain
 
 The single owning doc for the repo's harness policy: Node lifecycle, the
-Expo/native pin set, the `npm audit` advisory-diff gate, secret scanning,
-vendored-agent-harness vetting, and branch protection. Update this doc in the
-same change whenever the machine-checkable inputs it references
-(`.nvmrc`, `.github/audit-allowlist.json`, `.github/vendored-pins.json`) change.
+Expo/native pin set, the `npm audit` advisory-diff gate, the coverage diff-gate,
+secret scanning, vendored-agent-harness vetting, branch protection, and the
+gated Dependabot auto-merge workflow. Update this doc in the same change whenever
+the machine-checkable inputs it references (`.nvmrc`,
+`.github/audit-allowlist.json`, `.github/coverage-baseline.json`,
+`.github/vendored-pins.json`) change.
 
 ## Node lifecycle & toolchain floor
 
@@ -87,6 +89,38 @@ runtime-reachable in the meantime.
 sanctioned `expo install --fix`), triage it in this table, then add it to
 `.github/audit-allowlist.json`. Prune ids the gate reports as no longer present.
 
+## Coverage — diff-gate
+
+Coverage has the same failure mode as `npm audit`: a single repo-wide % is
+either misleading (native RN/Skia/worklet layers Vitest can't reach drag it
+down) or an arbitrary floor picked before a baseline exists. So it uses the same
+shape as the audit gate — a committed baseline is the source of truth, and CI
+fails only on a **drop below it**.
+
+[`scripts/check-coverage.mjs`](../scripts/check-coverage.mjs)
+(`npm run coverage:diff`) reads Vitest's `coverage/coverage-summary.json` (v8
+provider, `json-summary` reporter, scoped to the RN-free testable surface in
+[`vitest.config.ts`](../vitest.config.ts)) and compares it to
+[`.github/coverage-baseline.json`](../.github/coverage-baseline.json) at two
+levels:
+
+- **total** — statements / branches / functions / lines over the whole surface, and
+- **per-file** — every file present in BOTH the baseline and the current run.
+
+Per-file is what stops the gameable case: a PR that adds a big well-tested file
+while an existing file silently regresses keeps `total` flat, so a total-only
+gate would pass. A metric may slip at most `epsilon` (0.5 pp) before the gate
+fails. New files (in current, not baseline) are reported to fold into the next
+baseline, never failed; files no longer measured are reported as prunable.
+
+**The baseline IS the floor, and it auto-ratchets.** On an overall rise the gate
+prints a "safe to ratchet" hint — refresh `.github/coverage-baseline.json` (run
+`npm run coverage`, then regenerate) in the same PR that raised coverage, to
+lock the gain. Lower the baseline only when a drop is intentional and justified
+(code deleted, not tests removed). CI runs `npm run coverage` then
+`npm run coverage:diff` in the `quality` job; the report is informational, the
+diff is the fail condition.
+
 ## Secret scanning (gitleaks)
 
 Detects Sentry/PostHog keys and other credentials; reinforces the CLAUDE.md
@@ -138,14 +172,14 @@ autoload side effects?) and update this table before bumping a pin.
 that needs repo-admin rights and **explicit owner confirmation** — it is not
 applied by any automation in this repo.
 
-Recommended command (require the CI checks + 1 approving review, dismiss stale
-approvals):
+Recommended command for this repo (solo flow — require the CI checks and dismiss
+stale approvals, but allow the owner to self-merge with no second approver):
 
 ```sh
 gh api -X PUT repos/{owner}/{repo}/branches/main/protection --input - <<'JSON'
 {
   "required_status_checks": { "strict": true, "contexts": ["quality", "secret-scan"] },
-  "required_pull_request_reviews": { "dismiss_stale_reviews": true, "required_approving_review_count": 1 },
+  "required_pull_request_reviews": { "dismiss_stale_reviews": true, "required_approving_review_count": 0 },
   "enforce_admins": false,
   "restrictions": null
 }
@@ -156,8 +190,49 @@ Notes:
 
 - `contexts` must match the CI job names exactly (`quality`, `secret-scan`); add
   `"Analyze (javascript-typescript)"` to also require CodeQL.
-- `required_approving_review_count: 1` blocks self-merge without a second
-  approver — intended for the team flow; drop it to `0` for a solo repo that
-  still wants required checks.
+- `required_approving_review_count: 0` is the **solo-repo** setting (the decided
+  flow): the CI checks must pass, but the owner can self-merge. Raise it to `1`
+  once a second reviewer joins, to block self-merge.
+- Enabling required status checks here is the precondition that makes the
+  Dependabot auto-merge workflow
+  ([`.github/workflows/dependabot-automerge.yml`](../.github/workflows/dependabot-automerge.yml))
+  safe to activate — see its gating note; until then that workflow must not merge to `main`.
 - If `gh api -X PUT` returns `403`, the account lacks admin; this stays a
   documented owner action.
+
+## Dependabot auto-merge — gated on branch protection
+
+[`.github/workflows/dependabot-automerge.yml`](../.github/workflows/dependabot-automerge.yml)
+auto-approves and enables GitHub native auto-merge for **low-risk Dependabot PRs
+only — the `dev-tooling` group at minor/patch**. It is **authored but inert**:
+it changes nothing on `main` until the repo owner completes the setup below.
+
+- **Default-deny scope.** The workflow proceeds only when
+  `dependabot/fetch-metadata` reports `dependency-group == 'dev-tooling'` AND an
+  update-type of `semver-minor` or `semver-patch`. The Expo/native `expo-native`
+  group, the entire `github-actions` ecosystem, any **major** bump, and any
+  ungrouped npm PR (empty group) all fall through untouched and wait for a human
+  — consistent with the pin-set and action-vetting rules above.
+- **Why it is safe only after branch protection.** `gh pr merge --auto` waits on
+  the repo's **required** status checks. With no protection there are no required
+  checks, so `--auto` has nothing to gate on and a bad dependency could land on
+  `main` unreviewed. Do not rely on this workflow until `main` requires `quality`
+  - `secret-scan` (see § Branch protection above).
+- **Two owner-only repo settings** (Settings → Actions → General → Workflow
+  permissions), or the approve step returns `403`: **"Allow auto-merge"** and
+  **"Allow GitHub Actions to create and approve pull requests"** (the latter is
+  OFF by default). Enable them in the same session as branch protection.
+- **Least privilege.** No workflow-level permissions; the job grants only
+  `contents: write` + `pull-requests: write`. The PR URL is passed via an `env:`
+  var, never inlined into `run:` (script-injection guard).
+- **Coverage coupling.** `@vitest/coverage-v8` is grouped with `vitest` in
+  `dev-tooling` (see [`dependabot.yml`](../.github/dependabot.yml)) so they bump
+  in one PR — auto-merge can never version-skew them on `main`.
+- `dependabot/fetch-metadata` is SHA-pinned to its `v2` head
+  (`21025c705c08248db411dc16f3619e6b5f9ea21a`); Dependabot's `github-actions`
+  ecosystem proposes future bumps as review-only PRs — re-vet per the vetting
+  rules above before merging one.
+- **Verify synthetically, not organically:** open a throwaway branch that bumps a
+  single `dev-tooling` dev-dependency by a patch, confirm it auto-merges once
+  `quality` + `secret-scan` are green, then confirm a `github-actions` /
+  `expo-native` PR is left untouched. Delete the throwaways after.
