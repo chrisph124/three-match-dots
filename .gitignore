@@ -44,3 +44,6 @@ example
 
 # per-agent runtime memory (local scratch, not a project deliverable)
 .claude/agent-memory/
+
+# local scratch workspace (not a project deliverable)
+scratchpad/
