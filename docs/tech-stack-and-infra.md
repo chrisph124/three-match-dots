@@ -12,35 +12,35 @@ planned → no monorepo needed.
 
 ## Final Stack
 
-| Concern | Choice | Note |
-|---------|--------|------|
-| Language | TypeScript | |
-| App shell / build | Expo (dev client, NOT Expo Go) + EAS | Skia needs native code |
-| Navigation | **expo-router** | file-based; ~4 screens (title/game/game-over/settings) |
-| Rendering | `@shopify/react-native-skia` | board as one GPU canvas |
-| Animation | `react-native-reanimated` v3 | UI-thread worklets |
-| Gestures | `react-native-gesture-handler` | touch→grid hit-test in worklet |
-| State | Zustand (UI/meta) + Reanimated shared values (hot loop) | |
-| Persistence | `react-native-mmkv` | high score + settings; no backend |
-| Audio | `expo-av` | SFX |
-| Testing | **Vitest** (pure-TS core only) | see caveat |
-| Lint / format | ESLint (`eslint-config-expo`) + **`eslint-plugin-sonarjs`** + Prettier | SonarLint rules in ESLint |
-| Type safety | strict tsconfig; **no `any`** (`@typescript-eslint/no-explicit-any` = error) | use `unknown`/`Record<string, unknown>`/`<T>` |
-| Package manager | npm | single app, simplest |
+| Concern           | Choice                                                                       | Note                                                   |
+| ----------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Language          | TypeScript                                                                   |                                                        |
+| App shell / build | Expo (dev client, NOT Expo Go) + EAS                                         | Skia needs native code                                 |
+| Navigation        | **expo-router**                                                              | file-based; ~4 screens (title/game/game-over/settings) |
+| Rendering         | `@shopify/react-native-skia`                                                 | board as one GPU canvas                                |
+| Animation         | `react-native-reanimated` v3                                                 | UI-thread worklets                                     |
+| Gestures          | `react-native-gesture-handler`                                               | touch→grid hit-test in worklet                         |
+| State             | Zustand (UI/meta) + Reanimated shared values (hot loop)                      |                                                        |
+| Persistence       | `react-native-mmkv`                                                          | high score + settings; no backend                      |
+| Audio             | `expo-av`                                                                    | SFX                                                    |
+| Testing           | **Vitest** (pure-TS core only)                                               | see caveat                                             |
+| Lint / format     | ESLint (`eslint-config-expo`) + **`eslint-plugin-sonarjs`** + Prettier       | SonarLint rules in ESLint                              |
+| Type safety       | strict tsconfig; **no `any`** (`@typescript-eslint/no-explicit-any` = error) | use `unknown`/`Record<string, unknown>`/`<T>`          |
+| Package manager   | npm                                                                          | single app, simplest                                   |
 
 ## Final Infra
 
-| Area | Choice |
-|------|--------|
-| Build / release | EAS Build + EAS Submit → TestFlight (iOS), Google Play (Android phase) |
-| Crash reporting | Sentry (`@sentry/react-native`) |
-| Analytics | **PostHog** (privacy-friendly; no IDFA → no iOS ATT prompt; EU-hosting option) |
-| OTA updates | `expo-updates` (`eas update`) — push JS-only fixes without store review |
-| Code quality | **`eslint-plugin-sonarjs`** (SonarLint rules) — local + CI, free. No SonarCloud SaaS (redundant). |
-| Security scan | **CodeQL** (`.github/workflows/codeql.yml`, JS/TS) + **Dependabot** (npm + actions) — free on public repo |
-| CI | GitHub Actions: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest (+ coverage) — wired at scaffold |
-| Git hooks | Husky + lint-staged — wired at scaffold |
-| Backend | NONE for v1 (Sentry/PostHog are 3rd-party SaaS, not our servers) |
+| Area            | Choice                                                                                                      |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| Build / release | EAS Build + EAS Submit → TestFlight (iOS), Google Play (Android phase)                                      |
+| Crash reporting | Sentry (`@sentry/react-native`)                                                                             |
+| Analytics       | **PostHog** (privacy-friendly; no IDFA → no iOS ATT prompt; EU-hosting option)                              |
+| OTA updates     | `expo-updates` (`eas update`) — push JS-only fixes without store review                                     |
+| Code quality    | **`eslint-plugin-sonarjs`** (SonarLint rules) — local + CI, free. No SonarCloud SaaS (redundant).           |
+| Security scan   | **CodeQL** (`.github/workflows/codeql.yml`, JS/TS) + **Dependabot** (npm + actions) — free on public repo   |
+| CI              | GitHub Actions: lint (incl. sonarjs) + typecheck (strict, no-any) + Vitest (+ coverage) — wired at scaffold |
+| Git hooks       | Husky + lint-staged — wired at scaffold                                                                     |
+| Backend         | NONE for v1 (Sentry/PostHog are 3rd-party SaaS, not our servers)                                            |
 
 ## Key Decisions & Rationale
 
@@ -56,13 +56,13 @@ planned → no monorepo needed.
 
 ## Caveats / Risks
 
-| Caveat | Detail |
-|--------|--------|
-| Vitest tests RN-free code ONLY | Core (chain/loop/gravity/scoring) is unit-tested; Skia/Reanimated/gesture layers verified ON-DEVICE, not in Vitest. "We have tests" ≠ "UI tested". |
-| Analytics = compliance overhead | App Store Privacy Nutrition Labels + Google Play Data Safety disclosures required; possible GDPR consent. PostHog minimizes this. |
-| Android low-end perf | Skia+Reanimated great on iOS; Android device fragmentation → test on a cheap real Android device in the Android phase. |
-| OTA limits | `expo-updates` ships JS only; native changes (new native module) still need a store build. |
-| Strict no-`any` friction | Untyped 3rd-party libs may force `any` — allowed only via inline `eslint-disable` + justification comment. |
+| Caveat                          | Detail                                                                                                                                             |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vitest tests RN-free code ONLY  | Core (chain/loop/gravity/scoring) is unit-tested; Skia/Reanimated/gesture layers verified ON-DEVICE, not in Vitest. "We have tests" ≠ "UI tested". |
+| Analytics = compliance overhead | App Store Privacy Nutrition Labels + Google Play Data Safety disclosures required; possible GDPR consent. PostHog minimizes this.                  |
+| Android low-end perf            | Skia+Reanimated great on iOS; Android device fragmentation → test on a cheap real Android device in the Android phase.                             |
+| OTA limits                      | `expo-updates` ships JS only; native changes (new native module) still need a store build.                                                         |
+| Strict no-`any` friction        | Untyped 3rd-party libs may force `any` — allowed only via inline `eslint-disable` + justification comment.                                         |
 
 ## Success Criteria
 
@@ -82,3 +82,45 @@ planned → no monorepo needed.
 - Sentry + PostHog account/org setup — who owns the accounts/keys? (store keys outside git)
 - EU vs US data hosting for PostHog (GDPR posture)?
 - Minimum supported iOS / Android OS versions?
+
+---
+
+## Technical reference — `src/` architecture map
+
+_Added 2026-08-18. The concrete map of the shipped layers, extending the "Architecture (layered)"
+overview in [`CLAUDE.md`](../CLAUDE.md) (the tech authority). This section is the technical
+reference the doc-sync rule points at — update it in the same change as any architecture/engine
+work. Indexed from [`project-bible.md`](./project-bible.md)._
+
+The app is split so the game logic is engine-agnostic and unit-testable, and the RN/Skia/worklet
+layers stay out of Vitest (verified on-device). Dependencies point one way: `resolve/` → `hot/`,
+never the reverse (`CLAUDE.md` → Development Rules).
+
+| Layer                 | Path                                        | RN-free?               | Responsibility                                                                                                                                                          | Key files                                                                                                                                       |
+| --------------------- | ------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Core**              | `src/core/`                                 | Yes (Vitest)           | Board model, orchestration, config, RNG, deadlock + reshuffle                                                                                                           | `game.ts`, `config.ts` (`DEFAULT_CONFIG`: `minChain=3`, `lineLength`, `sweepMultiplier`), `types.ts`, `rng.ts`, `deadlock.ts`, `shuffle.ts`     |
+| **Core · hot**        | `src/core/hot/`                             | Yes · **worklet-safe** | Pure hit-test/validation run on the UI thread (no alloc, no module state, `'worklet'`)                                                                                  | `adjacency.ts` (8-way), `can-append.ts`, `closes-square.ts` (2×2 loop), `is-line.ts` (≥5 run)                                                   |
+| **Core · resolve**    | `src/core/resolve/`                         | Yes                    | Chain resolution pipeline                                                                                                                                               | `classify-chain.ts`, `collect-cleared.ts` (color-sweep), `gravity.ts`, `refill.ts`, `resolve-chain.ts`, `scoring.ts`                            |
+| **Core · journey**    | `src/core/journey/`                         | Yes                    | Journey mode state + objectives (vertical slice, landing)                                                                                                               | `journey-state.ts`, `objectives.ts`                                                                                                             |
+| **Core · level**      | `src/core/level/`                           | Yes                    | Level-script loader/validator + first city                                                                                                                              | `level-script.ts` (schema = [`level-script-schema.md`](./level-script-schema.md)), `japan-01.test.ts` (validates `assets/levels/japan-01.json`) |
+| **Core · obstacles**  | `src/core/obstacles/`                       | Yes                    | Obstacle behavior (v1 seed)                                                                                                                                             | `caged-dot.ts`                                                                                                                                  |
+| **Render**            | `src/render/`                               | No (Skia)              | Draw board, dots, active link path                                                                                                                                      | `board-canvas.tsx`, `dot-layer.tsx`, `link-path.tsx`, `palette.ts` (`DOT_COLORS`, append-only)                                                  |
+| **Render · geometry** | `src/render/geometry.ts`, `move-offsets.ts` | Yes (Vitest)           | Pure arithmetic over plain numbers — the **only** non-`core` source files Vitest covers; `contrast.test.ts` is a standalone WCAG guard (inline logic, no source module) | `geometry.ts`, `move-offsets.ts`                                                                                                                |
+| **Input**             | `src/input/`                                | No (worklet)           | Touch xy → cell; build/commit/cancel chain                                                                                                                              | `use-board-gesture.ts`                                                                                                                          |
+| **Effects**           | `src/effects/`                              | No (Reanimated)        | Pop, fall/spawn, shuffle slide, reduce-motion                                                                                                                           | `use-board-animation.ts`, `use-reduce-motion.ts`                                                                                                |
+| **Meta**              | `src/meta/`                                 | No (RN/MMKV)           | One board + one score; Journey state; persistence                                                                                                                       | `use-game-state.ts`, `use-journey-state.ts`, `score-storage.ts` (MMKV key `'score'`)                                                            |
+| **App (screens)**     | `src/app/`                                  | No (expo-router)       | File-based screens                                                                                                                                                      | `_layout.tsx`, `index.tsx` (title), `game.tsx`, `journey.tsx`, `settings.tsx` — no game-over (Endless has no fail state)                        |
+
+**Test boundary:** Vitest runs `src/core/**` plus the three pure `src/render` files above
+(`vitest.config.ts` `include`); everything else is verified on-device. Coverage is gated on that
+same testable surface — see the coverage diff-gate in
+[`security-and-supply-chain.md`](./security-and-supply-chain.md).
+
+**Related:** governance/supply-chain = [`security-and-supply-chain.md`](./security-and-supply-chain.md);
+team process = [`team-workflow-design.md`](./team-workflow-design.md); gameplay beats =
+[`three-dots-gameplay-script.md`](./three-dots-gameplay-script.md).
+
+> **Note (2026-08-18):** `src/core/journey/`, `src/core/level/`, and `src/core/obstacles/` exist
+> in the tree (Journey vertical-slice scaffolding has begun landing). `three-dots-game-design.md`
+> still reads "not yet implemented"; treat this map as the ground truth for what is present and
+> reconcile that design-doc status line in a dedicated game-side pass (out of this governance scope).

@@ -25,5 +25,6 @@ Native + Expo.
 
 ## Learn more
 
-See `CLAUDE.md` for architecture, tech stack, and team workflow, and `docs/`
-for the game design and infrastructure docs.
+Start at **[`docs/project-bible.md`](docs/project-bible.md)** — the docs index that routes to every
+concern (design, creative, technical, security, levels, compliance, process). See `CLAUDE.md` for
+architecture, tech stack, and team workflow.

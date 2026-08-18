@@ -33,6 +33,10 @@ updates:
           - 'prettier'
           - 'typescript'
           - 'vitest'
+          # @vitest/coverage-v8 is version-locked to vitest (dynamically imported
+          # by it, not a strict npm peer) — grouped here so both bump in ONE PR
+          # and can never version-skew when this group is auto-merged.
+          - '@vitest/*'
           - 'husky'
           - 'lint-staged'
         update-types:

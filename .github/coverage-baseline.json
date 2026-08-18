@@ -1,0 +1,143 @@
+{
+  "epsilon": 0.5,
+  "total": {
+    "statements": 94.61,
+    "branches": 93.9,
+    "functions": 98.24,
+    "lines": 94.82
+  },
+  "files": {
+    "src/core/config.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/deadlock.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/game.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/hot/adjacency.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/hot/can-append.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/hot/closes-square.ts": {
+      "statements": 95.83,
+      "branches": 94.44,
+      "functions": 100,
+      "lines": 95.83
+    },
+    "src/core/hot/is-line.ts": {
+      "statements": 91.66,
+      "branches": 87.5,
+      "functions": 100,
+      "lines": 90.9
+    },
+    "src/core/journey/journey-state.ts": {
+      "statements": 93.33,
+      "branches": 77.27,
+      "functions": 100,
+      "lines": 93.1
+    },
+    "src/core/journey/objectives.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/level/level-script.ts": {
+      "statements": 100,
+      "branches": 96.66,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/obstacles/caged-dot.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/resolve/classify-chain.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/resolve/collect-cleared.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/resolve/gravity.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/resolve/refill.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/resolve/resolve-chain.ts": {
+      "statements": 95.45,
+      "branches": 92.85,
+      "functions": 100,
+      "lines": 95.23
+    },
+    "src/core/resolve/scoring.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/rng.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/shuffle.ts": {
+      "statements": 71.92,
+      "branches": 75,
+      "functions": 75,
+      "lines": 72.54
+    },
+    "src/core/types.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/render/geometry.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/render/move-offsets.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    }
+  }
+}
