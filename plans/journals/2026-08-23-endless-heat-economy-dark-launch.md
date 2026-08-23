@@ -75,10 +75,17 @@ lineLength:6 }`. Bounds: score-rate ≤3.0×, sweep-share Δ≤0.20. Gate green 
   anti-conservative on the F5 exploit). If the flip degenerates on-device, tune
   `sweepExclusionWeight` or `heatStep` **down** — do not raise bounds again.
 
-## Unresolved questions
+## Unresolved questions — resolved 2026-08-24
 
-1. Should the Phase-2 sweep counters have been gated behind the flip too, or is
-   starting the lifetime tally at this dark land (so early players' sweeps aren't
-   lost) the intended behavior? Treated as intended; worth an explicit owner nod.
-2. Journal entry left uncommitted (working tree was clean after the 3 approved
-   commits) — commit it separately or fold into a later plans commit?
+1. **Sweep-counter gating → keep LIVE (owner-confirmed).** The lifetime `sweeps.N`
+   tally stays unconditional — not gated behind the flip — so early players' sweeps
+   are never lost and the count carries across the eventual economy tuning change.
+   Decision recorded at the increment site in `src/meta/use-game-state.ts`. No
+   behavior change (the counters already wrote live at land); the follow-up only
+   documents the intent.
+2. **Journal-commit question → moot.** The 2026-08-23 entry was committed with the
+   PR #17 land (merge `3f8898a`), not left dangling.
+
+Also closed in the same follow-up: the coverage baseline was ratcheted up
+(`.github/coverage-baseline.json`, `max(old, current)` per metric, no erosions) to
+lock the merged gains. See the plan's "## Follow-ups (2026-08-24)" section.

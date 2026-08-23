@@ -124,10 +124,13 @@ export function useGameState({
   const applyAndDrop = useCallback(
     (resolution: Resolution) => {
       const next = applyResolution(latest.current, resolution);
-      // Lifetime per-color sweep tally. MUST live here, not in `publish`: a
-      // relative +=1 would double-count on the sweep→deadlock path, where
-      // `publish` fires twice (here, then `settle` re-publishes the shuffle).
-      // `applyAndDrop` runs exactly once per commit, so this fires once.
+      // Lifetime per-color sweep tally. Deliberately unconditional — not gated
+      // by the heat-economy config dials, so the lifetime count accrues from
+      // first play and carries across the eventual economy tuning change.
+      // MUST live here, not in `publish`: a relative +=1 would double-count on
+      // the sweep→deadlock path, where `publish` fires twice (here, then
+      // `settle` re-publishes the shuffle). `applyAndDrop` runs exactly once per
+      // commit, so this fires once.
       if (resolution.kind !== 'plain') {
         incrementSweepCount(resolution.color);
       }
