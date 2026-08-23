@@ -3,12 +3,12 @@ name: CodeQL
 on:
   push:
     branches: [main]
-    paths: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+    paths: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx']
   pull_request:
     branches: [main]
-    paths: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+    paths: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx']
   schedule:
-    - cron: "0 6 * * 1" # weekly, Monday 06:00 UTC
+    - cron: '0 6 * * 1' # weekly, Monday 06:00 UTC
 
 jobs:
   analyze:
@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ["javascript-typescript"]
+        language: ['javascript-typescript']
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -29,10 +29,10 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          language: ${{ matrix.language }}
+          languages: ${{ matrix.language }}
           queries: security-and-quality
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:${{ matrix.language }}"
+          category: '/language:${{ matrix.language }}'
