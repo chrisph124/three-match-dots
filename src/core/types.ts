@@ -55,6 +55,21 @@ export type GameConfig = {
   readonly lineLength: number;
   readonly baseScore: number;
   readonly sweepMultiplier: number;
+  /**
+   * Combo-heat dials. All optional and OFF by default so `DEFAULT_CONFIG` and
+   * every Journey config stay byte-identical; only `ENDLESS_CONFIG` turns them on.
+   */
+  /** Max heat tier. 0 (or undefined) disables heat — the multiplier is always 1. */
+  readonly heatCap?: number;
+  /** Multiplier gained per heat tier: factor = 1 + heat * heatStep. 0/undefined ⇒ no boost. */
+  readonly heatStep?: number;
+  /**
+   * How strongly a colour-sweep's OWN refill wave avoids the swept colour:
+   * 0 (or undefined) = off, byte-identical refill; 1 = full ban (zero swept-colour
+   * dots that wave); 0<w<1 = down-weight the swept colour's spawn probability.
+   * A weighted dial (not a boolean) so the sim can tune it below a full ban.
+   */
+  readonly sweepExclusionWeight?: number;
 };
 
 export type Resolution = {
@@ -66,6 +81,13 @@ export type Resolution = {
   readonly scoreDelta: number;
   readonly board: Board;
   readonly rngState: number;
+  /**
+   * Resulting heat tier after this commit (optional ⇒ read as 0). Present when
+   * a heat-enabled config resolved the chain; absent/0 leaves the meta layer inert.
+   */
+  readonly heat?: number;
+  /** True when this commit AND the previous one were both sweeps (optional ⇒ false). */
+  readonly doubleSweep?: boolean;
 };
 
 export type GameState = {
@@ -73,4 +95,12 @@ export type GameState = {
   readonly board: Board;
   readonly score: number;
   readonly rngState: number;
+  /**
+   * Carried combo-heat. Both optional so existing state literals (tests,
+   * `journey-state.ts`) stay valid; read via `?? 0` / `?? null`.
+   */
+  /** Current heat tier, 0..heatCap (undefined ⇒ treated as 0). */
+  readonly heat?: number;
+  /** Kind of the previous committed chain (undefined/null at newGame). */
+  readonly lastKind?: ChainKind | null;
 };

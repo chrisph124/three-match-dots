@@ -27,7 +27,7 @@ export function newGame(config: GameConfig, seed: number): GameState {
     board.push(step.value);
   }
 
-  return { config, board, score: 0, rngState: state };
+  return { config, board, score: 0, rngState: state, heat: 0, lastKind: null };
 }
 
 /** Folds a resolution into the next immutable game state. */
@@ -37,5 +37,9 @@ export function applyResolution(state: GameState, resolution: Resolution): GameS
     board: resolution.board,
     score: state.score + resolution.scoreDelta,
     rngState: resolution.rngState,
+    // Inert when heat is off: a heatless resolution reads as 0, and lastKind is
+    // just carried metadata the multiplier only consults on a heat-enabled config.
+    heat: resolution.heat ?? 0,
+    lastKind: resolution.kind,
   };
 }

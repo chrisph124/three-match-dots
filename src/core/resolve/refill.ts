@@ -1,6 +1,47 @@
-import { nextInt } from '../rng';
+import { next, nextInt, type RngStep } from '../rng';
 import type { Board, Color, Spawn } from '../types';
 import { EMPTY } from '../types';
+
+/**
+ * Draws one spawn colour. With exclusion off (the default) this is the literal
+ * uniform `nextInt(state, colors)` the seeded tests contract on — the off branch
+ * must never diverge from it. A colour-sweep's own refill wave can down-weight
+ * the swept colour so the board does not immediately re-offer what was cleared:
+ *
+ * - weight 1  → full ban: draw uniformly over the OTHER colours, then step the
+ *   index past the banned one. One RNG advance, zero swept-colour dots.
+ * - 0<w<1     → partial: a single weighted draw giving the swept colour relative
+ *   weight (1 - w) against 1 for every other colour. One RNG advance.
+ *
+ * Every branch consumes exactly one RNG step, so the stream stays legible.
+ */
+function drawSpawnColor(
+  state: number,
+  colors: number,
+  excludeColor: Color | undefined,
+  exclusionWeight: number | undefined,
+): RngStep {
+  const weight = exclusionWeight ?? 0;
+  if (excludeColor === undefined || weight <= 0) {
+    return nextInt(state, colors);
+  }
+  if (weight >= 1) {
+    const step = nextInt(state, colors - 1);
+    return { value: step.value >= excludeColor ? step.value + 1 : step.value, state: step.state };
+  }
+  const step = next(state);
+  const total = colors - weight; // (colors - 1) * 1 + (1 - weight)
+  let x = step.value * total;
+  // Walk the cumulative weights; the last colour is the remainder bucket and
+  // needs no comparison. That also absorbs any float drift that could otherwise
+  // leave x a hair short of the final weight after the subtractions.
+  for (let c = 0; c < colors - 1; c++) {
+    const w = c === excludeColor ? 1 - weight : 1;
+    if (x < w) return { value: c, state: step.state };
+    x -= w;
+  }
+  return { value: colors - 1, state: step.state };
+}
 
 /**
  * Fills the holes gravity left at the top of each column.
@@ -20,15 +61,17 @@ export function refill(
   cols: number,
   colors: number,
   rngState: number,
+  excludeColor?: Color,
+  exclusionWeight?: number,
 ): { board: Color[]; spawns: Spawn[]; rngState: number } {
-  const next: Color[] = [...board];
+  const filled: Color[] = [...board];
   const spawns: Spawn[] = [];
   let state = rngState;
 
   for (let col = 0; col < cols; col++) {
     let holes = 0;
     for (let row = 0; row < rows; row++) {
-      if (next[row * cols + col] === EMPTY) {
+      if (filled[row * cols + col] === EMPTY) {
         holes++;
       }
     }
@@ -36,13 +79,13 @@ export function refill(
     // only equals one because holes are contiguous there (see precondition
     // above), and using the name `row` invited reading it as a grid row.
     for (let holeIndex = 0; holeIndex < holes; holeIndex++) {
-      const step = nextInt(state, colors);
+      const step = drawSpawnColor(state, colors, excludeColor, exclusionWeight);
       state = step.state;
       const to = holeIndex * cols + col;
-      next[to] = step.value;
+      filled[to] = step.value;
       spawns.push({ to, color: step.value, heightAbove: holes - holeIndex });
     }
   }
 
-  return { board: next, spawns, rngState: state };
+  return { board: filled, spawns, rngState: state };
 }

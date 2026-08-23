@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_CONFIG } from '../core/config';
+import { ENDLESS_CONFIG } from '../core/config';
 import { hasLegalMove } from '../core/deadlock';
 import { applyResolution, newGame } from '../core/game';
 import { resolveChain } from '../core/resolve/resolve-chain';
@@ -19,6 +19,7 @@ import {
 import type { ChainState } from '../input/use-board-gesture';
 import type { BoardLayout } from '../render/geometry';
 import { buildMoveOffsets } from '../render/move-offsets';
+import { incrementSweepCount } from './score-storage';
 
 type Options = {
   readonly layout: BoardLayout;
@@ -32,7 +33,7 @@ type Options = {
   readonly reduceMotion?: boolean;
 };
 
-const CELL_COUNT = DEFAULT_CONFIG.rows * DEFAULT_CONFIG.cols;
+const CELL_COUNT = ENDLESS_CONFIG.rows * ENDLESS_CONFIG.cols;
 
 /**
  * Plain, non-hook mutators for the Reanimated shared values living on
@@ -62,7 +63,7 @@ export function useGameState({
   reduceMotion = false,
 }: Options) {
   const [state, setState] = useState<GameState>(() => ({
-    ...newGame(DEFAULT_CONFIG, Date.now() >>> 0),
+    ...newGame(ENDLESS_CONFIG, Date.now() >>> 0),
     score: initialScore,
   }));
 
@@ -123,6 +124,13 @@ export function useGameState({
   const applyAndDrop = useCallback(
     (resolution: Resolution) => {
       const next = applyResolution(latest.current, resolution);
+      // Lifetime per-color sweep tally. MUST live here, not in `publish`: a
+      // relative +=1 would double-count on the sweep→deadlock path, where
+      // `publish` fires twice (here, then `settle` re-publishes the shuffle).
+      // `applyAndDrop` runs exactly once per commit, so this fires once.
+      if (resolution.kind !== 'plain') {
+        incrementSweepCount(resolution.color);
+      }
       const { offsetX, offsetY } = buildMoveOffsets(
         { moves: resolution.falls, spawns: resolution.spawns },
         layout,

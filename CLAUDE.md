@@ -37,7 +37,7 @@ Native (Swift+Kotlin) = 2 codebases; Unity = overkill for simple 2D. No web vers
 | Animation         | **`react-native-reanimated`** v4 (worklets plugin auto-wired by `babel-preset-expo`, no `babel.config.js` needed) — falling/spring/clear tweens in UI-thread worklets |
 | Gestures          | **`react-native-gesture-handler`** — pan gesture; touch→grid hit-test + chain logic in worklet                                                                        |
 | State             | One board + one score number, owned by `src/meta/use-game-state.ts`; Zustand deferred until settings/meta UI grow                                                     |
-| Persistence       | **`react-native-mmkv`** — persists the score only (key `'score'`). No settings persisted yet. No backend in v1.                                                       |
+| Persistence       | **`react-native-mmkv`** — persists the score (key `'score'`) and per-color lifetime sweep counts (keys `'sweeps.N'`). No settings persisted yet. No backend in v1.    |
 | Audio             | **`expo-av`** — SFX (decided, not yet installed)                                                                                                                      |
 | Testing           | **Vitest** — unit-tests the pure-TS core ONLY (see Development Rules)                                                                                                 |
 | Lint / format     | **ESLint** (`eslint-config-expo`) + **Prettier**                                                                                                                      |
