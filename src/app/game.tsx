@@ -2,7 +2,7 @@ import { Link } from 'expo-router';
 import { useMemo } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import { DEFAULT_CONFIG } from '../core/config';
+import { ENDLESS_CONFIG } from '../core/config';
 import { useBoardAnimation } from '../effects/use-board-animation';
 import { useReduceMotion } from '../effects/use-reduce-motion';
 import { useBoardGesture, useChainState } from '../input/use-board-gesture';
@@ -12,7 +12,7 @@ import { BoardCanvas } from '../render/board-canvas';
 import { makeLayout } from '../render/geometry';
 import { SCREEN_BACKGROUND, TEXT_COLOR } from '../render/palette';
 
-const CELL_COUNT = DEFAULT_CONFIG.rows * DEFAULT_CONFIG.cols;
+const CELL_COUNT = ENDLESS_CONFIG.rows * ENDLESS_CONFIG.cols;
 
 export default function GameScreen() {
   const { width } = useWindowDimensions();
@@ -23,7 +23,7 @@ export default function GameScreen() {
   const boardSize = Math.min(width - 32, 400);
 
   const layout = useMemo(
-    () => makeLayout(DEFAULT_CONFIG.rows, DEFAULT_CONFIG.cols, boardSize),
+    () => makeLayout(ENDLESS_CONFIG.rows, ENDLESS_CONFIG.cols, boardSize),
     [boardSize],
   );
   const anim = useBoardAnimation(CELL_COUNT);
@@ -43,8 +43,8 @@ export default function GameScreen() {
     state: chainState,
     anim,
     layout,
-    minChain: DEFAULT_CONFIG.minChain,
-    lineLength: DEFAULT_CONFIG.lineLength,
+    minChain: ENDLESS_CONFIG.minChain,
+    lineLength: ENDLESS_CONFIG.lineLength,
     onCommit: game.commit,
   });
 

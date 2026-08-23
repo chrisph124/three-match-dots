@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../config';
 import { parseBoard } from '../test-support/board-fixture';
-import type { GameState } from '../types';
+import type { ChainKind, GameConfig, GameState } from '../types';
 import { EMPTY } from '../types';
 import { resolveChain } from './resolve-chain';
 
@@ -94,5 +94,99 @@ describe('resolveChain', () => {
     resolveChain(state, [0, 1, 5, 4, 0]);
     expect(state.board).toEqual(before);
     expect(state.score).toBe(0);
+  });
+
+  describe('combo heat (F5 override: all commits multiplied)', () => {
+    // heatCap 3, heatStep 0.5 — factor = 1 + postMoveHeat * 0.5, capped at 2.5x.
+    const heatState = (
+      art: string,
+      opts: {
+        heat?: number;
+        lastKind?: ChainKind | null;
+        seed?: number;
+        dials?: Partial<GameConfig>;
+      } = {},
+    ): GameState => {
+      const { board, rows, cols } = parseBoard(art);
+      return {
+        config: { ...DEFAULT_CONFIG, rows, cols, heatCap: 3, heatStep: 0.5, ...opts.dials },
+        board,
+        score: 0,
+        rngState: opts.seed ?? 2026,
+        heat: opts.heat,
+        lastKind: opts.lastKind,
+      };
+    };
+
+    it('leaves DEFAULT_CONFIG (heat off) with no heat field and an unscaled score', () => {
+      const result = resolveChain(stateFrom(ART), [0, 1, 5]);
+      expect(result?.heat).toBeUndefined();
+      expect(result?.doubleSweep).toBeUndefined();
+      expect(result?.scoreDelta).toBe(60);
+    });
+
+    it('raises heat one tier on a sweep and scales by the post-move heat', () => {
+      // square-loop clears 10 R -> 300 base; post-move heat 1 -> factor 1.5 -> 450.
+      const result = resolveChain(heatState(ART, { heat: 0 }), [0, 1, 5, 4, 0]);
+      expect(result?.heat).toBe(1);
+      expect(result?.scoreDelta).toBe(450);
+    });
+
+    it('stacks heat on consecutive sweeps', () => {
+      const result = resolveChain(heatState(ART, { heat: 2 }), [0, 1, 5, 4, 0]);
+      expect(result?.heat).toBe(3); // 2 + 1
+      expect(result?.scoreDelta).toBe(750); // 300 * (1 + 3*0.5) = 300 * 2.5
+    });
+
+    it('caps heat at heatCap', () => {
+      const result = resolveChain(heatState(ART, { heat: 3 }), [0, 1, 5, 4, 0]);
+      expect(result?.heat).toBe(3); // min(3, 4)
+      expect(result?.scoreDelta).toBe(750);
+    });
+
+    it('cools one tier on a plain chain but still scales it by cooled heat (F5 override)', () => {
+      // plain 3 R -> 60 base; heat 2 cools to 1 -> factor 1.5 -> 90.
+      const result = resolveChain(heatState(ART, { heat: 2 }), [0, 1, 5]);
+      expect(result?.heat).toBe(1);
+      expect(result?.scoreDelta).toBe(90);
+    });
+
+    it('floors heat at 0 on a plain chain from cold', () => {
+      const result = resolveChain(heatState(ART, { heat: 0 }), [0, 1, 5]);
+      expect(result?.heat).toBe(0);
+      expect(result?.scoreDelta).toBe(60); // factor 1
+    });
+
+    it('flags a double sweep only when the previous commit was also a sweep', () => {
+      expect(resolveChain(heatState(ART, { lastKind: 'line' }), [0, 1, 5, 4, 0])?.doubleSweep).toBe(
+        true,
+      );
+      expect(
+        resolveChain(heatState(ART, { lastKind: 'plain' }), [0, 1, 5, 4, 0])?.doubleSweep,
+      ).toBe(false);
+      expect(resolveChain(heatState(ART, { lastKind: null }), [0, 1, 5, 4, 0])?.doubleSweep).toBe(
+        false,
+      );
+    });
+
+    it('excludes the swept colour from its own refill wave when weighted on', () => {
+      const result = resolveChain(
+        heatState('RRRRR', { dials: { sweepExclusionWeight: 1 } }),
+        [0, 1, 2, 3, 4],
+      );
+      expect(result?.kind).toBe('line');
+      expect(result?.spawns.every((s) => s.color !== 0)).toBe(true);
+    });
+
+    it('never applies refill exclusion to a plain chain', () => {
+      // A plain commit must refill identically whether or not the dial is set,
+      // because exclusion is a sweep-only effect.
+      const withDial = resolveChain(
+        heatState(ART, { dials: { sweepExclusionWeight: 1 } }),
+        [0, 1, 5],
+      );
+      const without = resolveChain(heatState(ART), [0, 1, 5]);
+      expect(withDial?.spawns).toEqual(without?.spawns);
+    });
   });
 });

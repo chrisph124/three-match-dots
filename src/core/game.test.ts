@@ -115,4 +115,45 @@ describe('applyResolution', () => {
     expect(state.board).toEqual(before);
     expect(state.score).toBe(0);
   });
+
+  describe('combo-heat carry', () => {
+    it('starts a new game cold', () => {
+      const state = newGame(DEFAULT_CONFIG, 2026);
+      expect(state.heat).toBe(0);
+      expect(state.lastKind).toBeNull();
+    });
+
+    it('carries the resolution heat and kind forward', () => {
+      const state = newGame(DEFAULT_CONFIG, 2026);
+      const next = applyResolution(state, {
+        kind: 'line',
+        color: 0,
+        cleared: [],
+        falls: [],
+        spawns: [],
+        scoreDelta: 150,
+        board: state.board,
+        rngState: 7,
+        heat: 2,
+      });
+      expect(next.heat).toBe(2);
+      expect(next.lastKind).toBe('line');
+    });
+
+    it('reads a heatless resolution (heat off) as cold and still tracks kind', () => {
+      const state = newGame(DEFAULT_CONFIG, 2026);
+      const next = applyResolution(state, {
+        kind: 'plain',
+        color: 0,
+        cleared: [],
+        falls: [],
+        spawns: [],
+        scoreDelta: 60,
+        board: state.board,
+        rngState: 7,
+      });
+      expect(next.heat).toBe(0);
+      expect(next.lastKind).toBe('plain');
+    });
+  });
 });

@@ -82,4 +82,58 @@ describe('refill', () => {
     refill(board, rows, cols, 3, 777);
     expect(board).toEqual(before);
   });
+
+  describe('post-sweep colour exclusion', () => {
+    // A big all-holes board so a single refill draws many cells.
+    const holes = (rows: number, cols: number) => new Array<number>(rows * cols).fill(EMPTY);
+
+    it('is byte-identical to the plain refill when exclusion is off', () => {
+      const { board, rows, cols } = parseBoard(ART);
+      const base = refill(board, rows, cols, 3, 2026);
+      // No excludeColor, undefined weight, and an excludeColor with weight 0 all
+      // take the literal current loop — the RNG contract the seeded tests depend on.
+      expect(refill(board, rows, cols, 3, 2026, undefined, undefined)).toEqual(base);
+      expect(refill(board, rows, cols, 3, 2026, undefined, 1)).toEqual(base);
+      expect(refill(board, rows, cols, 3, 2026, 0, 0)).toEqual(base);
+    });
+
+    it('never spawns the excluded colour under a full ban (weight 1)', () => {
+      const board = holes(8, 8);
+      const { spawns } = refill(board, 8, 8, 3, 2026, 0, 1);
+      expect(spawns).toHaveLength(64);
+      expect(spawns.every((s) => s.color !== 0)).toBe(true);
+      expect(spawns.every((s) => s.color >= 0 && s.color < 3)).toBe(true);
+    });
+
+    it('full-ban excludes any of the colours, not just colour 0', () => {
+      const board = holes(8, 8);
+      for (const excluded of [0, 1, 2]) {
+        const { spawns } = refill(board, 8, 8, 3, 4242, excluded, 1);
+        expect(spawns.every((s) => s.color !== excluded)).toBe(true);
+      }
+    });
+
+    it('down-weights but still spawns the excluded colour at a partial weight', () => {
+      // Aggregate across many seeds so the frequency claim is robust, not seed-luck.
+      let excluded = 0;
+      let total = 0;
+      for (let seed = 1; seed <= 200; seed++) {
+        for (const s of refill(holes(6, 6), 6, 6, 3, seed, 0, 0.5).spawns) {
+          total++;
+          if (s.color === 0) excluded++;
+        }
+      }
+      const share = excluded / total;
+      // Weight 0.5 gives colour 0 relative weight 0.5 vs 1 for each other colour:
+      // P = 0.5 / (0.5 + 1 + 1) = 0.2, well below the uniform 1/3, but non-zero.
+      expect(share).toBeLessThan(1 / 3);
+      expect(share).toBeGreaterThan(0);
+    });
+
+    it('is reproducible for the same seed with exclusion on', () => {
+      const board = holes(6, 6);
+      expect(refill(board, 6, 6, 3, 999, 1, 1)).toEqual(refill(board, 6, 6, 3, 999, 1, 1));
+      expect(refill(board, 6, 6, 3, 999, 1, 0.5)).toEqual(refill(board, 6, 6, 3, 999, 1, 0.5));
+    });
+  });
 });
