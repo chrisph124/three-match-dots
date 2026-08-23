@@ -159,7 +159,9 @@ rework). (3) Visual-scope containment → **GO**.
   (a) `score-storage.ts` `readSweepCounts`/`resetSweepCounts` exported-but-unwired = deliberate
   CRUD-symmetry groundwork for the held read-out; (b) `refill.ts:40` partial-mode float safety-net is
   provably unreachable (`x = value*total`, `value∈[0,1)` ⇒ `x<total`; mulberry32 max `1−2⁻³²` leaves ~6e-10
-  margin) and no shipped config exercises the partial branch.
+  margin) and no shipped config exercises the partial branch — subsequently **removed** (commit `84cef88`)
+  by folding the last color into the loop's explicit remainder bucket when it dropped `refill.ts` below its
+  coverage-baseline floor; behavior-identical for every input.
 - Docs: the Phase-2 sweep counters are NOT dark — `sweeps.N` MMKV keys are written live on every sweep of
   the shipped mechanic — so the "persists the score only" claim was corrected in `CLAUDE.md` and
   `docs/tech-stack-and-infra.md` in this same land. No other evergreen docs change (dark gameplay =
@@ -173,6 +175,21 @@ lineLength:6}` on; (2) it MUST invert `src/core/config.test.ts` to assert the lo
   play; (4) the numeric sim gate is a floor not a ceiling (farm-then-cash bot is known anti-conservative on
   the F5 exploit), so if the flip degenerates on-device, tune `sweepExclusionWeight` or `heatStep` DOWN — do
   not raise the bounds again.
+
+## Follow-ups (2026-08-24)
+
+Landed via PR #17 (merge commit `3f8898a`), all CI green. The two post-merge unresolved items are closed:
+
+- **Counters stay LIVE (owner-confirmed).** The `sweeps.N` tally is intentionally unconditional — not gated
+  by the heat-economy dials — so a lifetime count accrues from first play and carries across the flip. A
+  "sweep" means the same at `lineLength` 5 or 6; only the line-sweep _rate_ shifts, so any future read-out
+  milestone thresholds should be tuned on post-flip data. Decision recorded at the increment site in
+  `src/meta/use-game-state.ts`. No behavior change.
+- **Coverage baseline ratcheted.** `.github/coverage-baseline.json` regenerated from current coverage
+  (ratchet-up `max(old, current)` per metric; no erosions, no new/gone files), locking the merged gains
+  (`is-line.ts` and `resolve-chain.ts` to their new highs; total 94.61→95.22 stmts). Gate now reads "at or
+  above baseline". The `refill.ts` safety-net that broke the gate on the PR was removed by the
+  remainder-bucket refactor (`84cef88`), not by lowering the floor.
 
 ## Open questions (for validation)
 
