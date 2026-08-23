@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CONFIG } from '../config';
+import { DEFAULT_CONFIG, ENDLESS_CONFIG } from '../config';
 import { hasLegalMove } from '../deadlock';
 import { applyResolution, newGame } from '../game';
 import { shuffleBoard } from '../shuffle';
@@ -51,6 +51,16 @@ const flipped = (w: number): GameConfig => ({
   heatStep: 0.5,
   sweepExclusionWeight: w,
   lineLength: 6,
+});
+
+// The sim hand-rolls `flipped()` so it can sweep `w`. Guard that the bundle the
+// app actually ships — ENDLESS_CONFIG at the owner-pinned w=1 — is exactly what
+// this gate proves. Without it, a later dial tweak in config.ts could leave the
+// sim vouching for a stale bundle the game no longer runs.
+describe('flip bundle matches the shipped Endless config', () => {
+  it('flipped(1) equals ENDLESS_CONFIG', () => {
+    expect(flipped(1)).toEqual(ENDLESS_CONFIG);
+  });
 });
 
 // ---------------------------------------------------------------------------

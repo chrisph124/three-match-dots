@@ -130,6 +130,24 @@ describe('refill', () => {
       expect(share).toBeGreaterThan(0);
     });
 
+    it('down-weights the LAST colour, which is the loop remainder bucket', () => {
+      // Excluding colour 2 (= colors - 1) is the case where the down-weighted
+      // colour is the walk's final remainder bucket rather than a compared one.
+      // Its share must still land near 0.2, proving the remainder branch honours
+      // the reduced weight and does not silently spawn it at the uniform rate.
+      let excluded = 0;
+      let total = 0;
+      for (let seed = 1; seed <= 200; seed++) {
+        for (const s of refill(holes(6, 6), 6, 6, 3, seed, 2, 0.5).spawns) {
+          total++;
+          if (s.color === 2) excluded++;
+        }
+      }
+      const share = excluded / total;
+      expect(share).toBeLessThan(1 / 3);
+      expect(share).toBeGreaterThan(0.1);
+    });
+
     it('is reproducible for the same seed with exclusion on', () => {
       const board = holes(6, 6);
       expect(refill(board, 6, 6, 3, 999, 1, 1)).toEqual(refill(board, 6, 6, 3, 999, 1, 1));
