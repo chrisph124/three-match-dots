@@ -1,10 +1,10 @@
 {
   "epsilon": 0.5,
   "total": {
-    "statements": 94.61,
-    "branches": 93.9,
-    "functions": 98.24,
-    "lines": 94.82
+    "statements": 95.22,
+    "branches": 95.29,
+    "functions": 98.27,
+    "lines": 95.43
   },
   "files": {
     "src/core/config.ts": {
@@ -44,10 +44,10 @@
       "lines": 95.83
     },
     "src/core/hot/is-line.ts": {
-      "statements": 91.66,
-      "branches": 87.5,
+      "statements": 100,
+      "branches": 100,
       "functions": 100,
-      "lines": 90.9
+      "lines": 100
     },
     "src/core/journey/journey-state.ts": {
       "statements": 93.33,
@@ -98,10 +98,10 @@
       "lines": 100
     },
     "src/core/resolve/resolve-chain.ts": {
-      "statements": 95.45,
-      "branches": 92.85,
+      "statements": 97.05,
+      "branches": 97.14,
       "functions": 100,
-      "lines": 95.23
+      "lines": 96.96
     },
     "src/core/resolve/scoring.ts": {
       "statements": 100,
