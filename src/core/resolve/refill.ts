@@ -32,12 +32,15 @@ function drawSpawnColor(
   const step = next(state);
   const total = colors - weight; // (colors - 1) * 1 + (1 - weight)
   let x = step.value * total;
-  for (let c = 0; c < colors; c++) {
+  // Walk the cumulative weights; the last colour is the remainder bucket and
+  // needs no comparison. That also absorbs any float drift that could otherwise
+  // leave x a hair short of the final weight after the subtractions.
+  for (let c = 0; c < colors - 1; c++) {
     const w = c === excludeColor ? 1 - weight : 1;
     if (x < w) return { value: c, state: step.state };
     x -= w;
   }
-  return { value: colors - 1, state: step.state }; // float-rounding safety net
+  return { value: colors - 1, state: step.state };
 }
 
 /**
