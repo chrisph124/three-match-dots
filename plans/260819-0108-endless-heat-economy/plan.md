@@ -187,9 +187,42 @@ Landed via PR #17 (merge commit `3f8898a`), all CI green. The two post-merge unr
   `src/meta/use-game-state.ts`. No behavior change.
 - **Coverage baseline ratcheted.** `.github/coverage-baseline.json` regenerated from current coverage
   (ratchet-up `max(old, current)` per metric; no erosions, no new/gone files), locking the merged gains
-  (`is-line.ts` and `resolve-chain.ts` to their new highs; total 94.61→95.22 stmts). Gate now reads "at or
-  above baseline". The `refill.ts` safety-net that broke the gate on the PR was removed by the
-  remainder-bucket refactor (`84cef88`), not by lowering the floor.
+
+## Flip commit — authored + held (2026-08-24)
+
+The Phase-1 step-8 flip commit is authored and open as **draft PR #20**
+(`feat/endless-heat-economy-flip`, single commit) — **held, not merged**. The
+decisive gate is the owner's on-device feel test, which cannot run in CI.
+
+- **What flipped:** `ENDLESS_CONFIG` now carries `{ lineLength: 6, heatCap: 3,
+heatStep: 0.5, sweepExclusionWeight: 1 }`. `DEFAULT_CONFIG` and every Journey
+  config stay byte-identical (dials undefined). The dark gate in
+  `config.test.ts` was **inverted, not deleted** — it now pins the exact bundle
+  and asserts the default stays inert; a new `flipped(1) === ENDLESS_CONFIG`
+  guard in the sim prevents drift; a remainder-bucket case was added to
+  `refill.test.ts`.
+- **Gates green:** 245 tests, typecheck clean, lint 0 errors, `coverage:diff` at
+  baseline; code review DONE (no Critical/High); on PR #20 quality + secret-scan
+  - CodeQL Analyze all pass.
+- **Merge rule (in the PR body):** if play degenerates on device, tune
+  `sweepExclusionWeight` or `heatStep` **DOWN** — never raise the sim bounds. The
+  probe is the sweep→sweep treadmill (at w=1 on 3 colours P(follow-up loop) ≈
+  1.0). Cheapest reversal is `git revert` of the one flip commit — kept a
+  single-commit unit for exactly that.
+- **CodeQL fix (orthogonal, PR #19, merged `41820c0`):** `.github/workflows/codeql.yml`
+  passed the deprecated `language:` input to `init`; corrected to `languages:` so
+  the matrix language is honoured. Landed to `main` **before** PR #20 so the flip
+  PR's CI runs the fixed workflow — its Analyze run passed, confirming the fix
+  end-to-end. Not part of this plan's scope; recorded here only for sequencing.
+
+**Phase 3 (read-outs) stays blocked + deferred.** Confirmed 2026-08-24: the
+visible read-out layer is gated behind `260817-1217-endless-visual-upgrade`
+**Phase 5** (HUD reskin), which is still `Pending` (that plan is `in-progress`).
+Owner chose to **respect the gate and defer** Item 2 rather than build against
+the un-reskinned HUD. Revisit once visual-upgrade Phase 5 lands.
+(`is-line.ts` and `resolve-chain.ts` to their new highs; total 94.61→95.22 stmts). Gate now reads "at or
+above baseline". The `refill.ts` safety-net that broke the gate on the PR was removed by the
+remainder-bucket refactor (`84cef88`), not by lowering the floor.
 
 ## Open questions (for validation)
 
