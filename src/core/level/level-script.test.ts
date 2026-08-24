@@ -6,6 +6,7 @@ import {
   constraintOf,
   levelToConfig,
   parseLevelScript,
+  starsMetric,
 } from './level-script';
 
 const PALETTE = 6;
@@ -467,5 +468,32 @@ describe('constraintOf', () => {
       mistakePenaltyMs: 2000,
       clearBonusMs: 0,
     });
+  });
+
+  it('throws for a level that carries neither a constraint nor a timer', () => {
+    // An endless level has no fail-state, so it parses with neither and must
+    // never reach the Voyage state machine's single-constraint entry point.
+    const input = valid();
+    input.mode = 'endless';
+    delete input.timer;
+    input.objectives = [{ type: 'clearColor', color: 0, count: 20 }];
+    input.obstacles = [];
+    delete input.rewards;
+    const endless = parseLevelScript(input, PALETTE);
+    expect(() => constraintOf(endless)).toThrow(/neither a constraint nor a timer/);
+  });
+});
+
+describe('starsMetric', () => {
+  it('classifies each authored star shape by its key', () => {
+    expect(starsMetric({ twoStarSecondsLeft: 1, threeStarSecondsLeft: 2 })).toBe('seconds');
+    expect(starsMetric({ twoStarMovesLeft: 1, threeStarMovesLeft: 2 })).toBe('moves');
+    expect(starsMetric({ twoStarMistakesLeft: 1, threeStarMistakesLeft: 2 })).toBe('mistakes');
+  });
+
+  it("falls back to 'unknown' for a shape carrying none of the known keys", () => {
+    // The parse pipeline's union schema never yields this, but the default stops
+    // an unrecognised shape from silently passing as a real metric.
+    expect(starsMetric({})).toBe('unknown');
   });
 });
