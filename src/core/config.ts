@@ -17,14 +17,23 @@ export const DEFAULT_CONFIG: GameConfig = {
 };
 
 /**
- * Endless mode's config. DARK-LAUNCHED: it currently mirrors `DEFAULT_CONFIG`
- * exactly, so Endless is byte-identical to the shipped game. The heat economy
- * (heatCap/heatStep), post-sweep refill exclusion (sweepExclusionWeight), and
- * the Endless-only sweep retune (lineLength 5 → 6) are turned on in ONE gated
- * flip commit — after the seeded sim proves the tuned bundle non-degenerate and
- * an on-device feel check passes. Until then this stays a spread of the default.
+ * Endless mode's config. Runs the tuned combo-heat economy: heat multiplies
+ * every commit (heatCap/heatStep), a colour-sweep's own refill wave fully bans
+ * the swept colour (sweepExclusionWeight 1), and the sweep line is retuned
+ * Endless-only from 5 → 6 so a straight sweep stays earned with three colours.
+ * The seeded sim (`heat-economy.sim.test.ts`) holds this bundle under its score
+ * -rate and sweep-share ceilings; the numbers are owner-locked. If play feels
+ * degenerate on device, tune `sweepExclusionWeight` or `heatStep` DOWN — the sim
+ * is a floor, not a ceiling, on the farm-then-cash line.
  *
- * Endless is the only consumer that ever enables these dials; `DEFAULT_CONFIG`
- * and every Journey config keep them off.
+ * Endless is the only consumer that enables these dials; `DEFAULT_CONFIG` and
+ * every Journey config keep them off, so both stay byte-identical to the
+ * shipped game.
  */
-export const ENDLESS_CONFIG: GameConfig = { ...DEFAULT_CONFIG };
+export const ENDLESS_CONFIG: GameConfig = {
+  ...DEFAULT_CONFIG,
+  lineLength: 6,
+  heatCap: 3,
+  heatStep: 0.5,
+  sweepExclusionWeight: 1,
+};
