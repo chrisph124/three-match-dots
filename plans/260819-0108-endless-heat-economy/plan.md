@@ -83,12 +83,12 @@ landing and the plain-board on-device hard gate passing.
       separately-gated flip commit after an on-device feel check.
 - [x] Journey's path through `resolveChain`/`applyResolution` is provably inert (its config never enables
       heat/exclusion; new `GameState`/`Resolution` fields default to no-op).
-- [ ] Endless (via `ENDLESS_CONFIG`) shows heat: consecutive sweeps escalate the multiplier to the cap;
-      one plain move cools it by one tier; floor 0. — implemented + tested; goes live at the gated flip
-      commit (dials are OFF in the dark land)
-- [ ] A color-sweep's own refill contains zero dots of the swept color; the **next** commit's refill is
-      back to full colors. — implemented + tested; goes live at the gated flip commit (dials are OFF in the
-      dark land)
+- [x] Endless (via `ENDLESS_CONFIG`) shows heat: consecutive sweeps escalate the multiplier to the cap;
+      one plain move cools it by one tier; floor 0. — implemented + tested; **live** as of the flip commit
+      (on-device feel check passed)
+- [x] A color-sweep's own refill contains zero dots of the swept color; the **next** commit's refill is
+      back to full colors. — implemented + tested; **live** as of the flip commit (on-device feel check
+      passed)
 - [x] Seeded sim harness runs **three bots** (greedy-score + sweep-whenever-available + farm-then-cash),
       reports P(follow-up sweep) **separately for 2×2-loops and ≥`lineLength` lines** at
       `sweepExclusionWeight ∈ {0, 0.5, 1}`, plus score-rate-vs-baseline ratio (max across greedy-score and
@@ -188,11 +188,13 @@ Landed via PR #17 (merge commit `3f8898a`), all CI green. The two post-merge unr
 - **Coverage baseline ratcheted.** `.github/coverage-baseline.json` regenerated from current coverage
   (ratchet-up `max(old, current)` per metric; no erosions, no new/gone files), locking the merged gains
 
-## Flip commit — authored + held (2026-08-24)
+## Flip commit — authored, held, then shipped (2026-08-24)
 
-The Phase-1 step-8 flip commit is authored and open as **draft PR #20**
-(`feat/endless-heat-economy-flip`, single commit) — **held, not merged**. The
-decisive gate is the owner's on-device feel test, which cannot run in CI.
+The Phase-1 step-8 flip landed via **PR #20** (`feat/endless-heat-economy-flip`,
+single commit, squash-merged `5d84b65`). It was held as a draft until the
+decisive gate — the owner's on-device feel test, which cannot run in CI — passed
+(**GO, 2026-08-24**); post-merge CI (CI + CodeQL) green on `main`. The tuned
+economy is now **live in Endless**.
 
 - **What flipped:** `ENDLESS_CONFIG` now carries `{ lineLength: 6, heatCap: 3,
 heatStep: 0.5, sweepExclusionWeight: 1 }`. `DEFAULT_CONFIG` and every Journey
