@@ -3,13 +3,17 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { constraintOf, levelToConfig, type LevelScript } from '../core/level/level-script';
+import { protectedOf } from '../core/obstacles/caged-dot';
 import type { VoyageBudget } from '../core/voyage/voyage-state';
 import { useBoardAnimation } from '../effects/use-board-animation';
 import { useBoardGesture, useChainState } from '../input/use-board-gesture';
 import { useVoyageState } from '../meta/use-voyage-state';
 import { SLICE_LADDER_LENGTH, voyageLevelAt } from '../meta/voyage-ladder';
 import { recordLevelResult } from '../meta/voyage-progress-storage';
+import { hasSeenCageIntro, markCageIntroSeen } from '../meta/tutorial-flags';
 import { BoardCanvas } from '../render/board-canvas';
+import { CageIntroPopup } from '../render/cage-intro-popup';
+import { CageOverlayLayer } from '../render/cage-overlay-layer';
 import { makeLayout } from '../render/geometry';
 import { DOT_COLORS, SCREEN_BACKGROUND, TEXT_COLOR } from '../render/palette';
 import { BackdropCanvas } from '../render/voyage/backdrop-canvas';
@@ -122,6 +126,20 @@ function VoyageRun({
   const over = voyage.status !== 'playing';
   const stars = won ? starsForWin(level, voyage.budget) : 0;
 
+  // Teach the layered-cage mechanic once per install, the first time a level
+  // deals a cage with 2+ layers (`protectedOf` is exactly the ≥2-layer set, so
+  // a single-layer cage never triggers it). Read once at mount; dismissing with
+  // "don't show again" records the flag synchronously so it never reappears.
+  const [showCageIntro, setShowCageIntro] = useState(
+    () => !hasSeenCageIntro() && protectedOf(voyage.caged).size > 0,
+  );
+  const dismissCageIntro = (dontShowAgain: boolean) => {
+    if (dontShowAgain) {
+      markCageIntroSeen();
+    }
+    setShowCageIntro(false);
+  };
+
   // Persist the medal once when the run is won (stars ratchet up in storage).
   const recorded = useRef(false);
   useEffect(() => {
@@ -163,6 +181,13 @@ function VoyageRun({
           <View style={{ width: boardSize, height: boardSize }}>
             <BoardCanvas board={voyage.board} layout={layout} anim={anim} chainState={chainState} />
             <VoyageEffectsLayer fx={fx} width={boardSize} height={boardSize} />
+            <CageOverlayLayer
+              caged={voyage.caged}
+              event={voyage.event}
+              layout={layout}
+              anim={anim}
+              reduceMotion={reduceMotion}
+            />
           </View>
         </GestureDetector>
       </BoardPanel>
@@ -194,6 +219,8 @@ function VoyageRun({
           </Pressable>
         </View>
       ) : null}
+
+      {showCageIntro ? <CageIntroPopup onDismiss={dismissCageIntro} /> : null}
     </View>
   );
 }

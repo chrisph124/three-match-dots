@@ -10,7 +10,11 @@ import { solve } from './solver';
  * there is no silent cap or sampling — all N levels are checked.
  */
 
-const PALETTE = 5;
+// Mirror the shipped runtime palette (`DOT_COLORS.length` = 6, passed into
+// `voyageLevelAt`). A literal, not an import, keeps this core test RN-free — the
+// palette lives in the render layer. Proving winnability at any smaller palette
+// would verify a ladder the player never sees.
+const PALETTE = 6;
 const N = 200;
 const LADDER = generateLadder(N, PALETTE);
 

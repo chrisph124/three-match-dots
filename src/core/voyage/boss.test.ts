@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newGame } from '../game';
-import { cagedCellIndices, levelToConfig } from '../level/level-script';
+import { cagedCellIndices, cagedCells, levelToConfig } from '../level/level-script';
 import { bossFor, cagedCore } from './boss';
 
 const PALETTE = 5;
@@ -49,5 +49,10 @@ describe('cagedCore (level 10)', () => {
     const game = newGame(levelToConfig(level), level.seed ?? 0);
     const cageColors = new Set(cagedCellIndices(level).map((cell) => game.board[cell]));
     expect(cageColors.size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('cages every core cell at 3 layers (boss band)', () => {
+    expect(level.obstacles.every((o) => o.layers === 3)).toBe(true);
+    expect(cagedCells(level).every((c) => c.layers === 3)).toBe(true);
   });
 });

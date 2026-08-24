@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../config';
-import { cagedCellIndices, constraintOf, levelToConfig, parseLevelScript } from './level-script';
+import {
+  cagedCellIndices,
+  cagedCells,
+  constraintOf,
+  levelToConfig,
+  parseLevelScript,
+} from './level-script';
 
 const PALETTE = 6;
 
@@ -110,6 +116,52 @@ describe('cagedCellIndices', () => {
   it('flattens cagedDot cells to row-major indices (row * cols + col)', () => {
     const level = parseLevelScript(valid(), PALETTE);
     expect(cagedCellIndices(level)).toEqual([20, 21, 22]); // row 3 * 6 + {2,3,4}
+  });
+});
+
+describe('cagedCells (layer source of truth)', () => {
+  it('returns row-major index + layers, defaulting layers to 1 when omitted', () => {
+    const level = parseLevelScript(valid(), PALETTE);
+    expect(cagedCells(level)).toEqual([
+      { index: 20, layers: 1 },
+      { index: 21, layers: 1 },
+      { index: 22, layers: 1 },
+    ]);
+  });
+
+  it('carries an authored layers count through', () => {
+    const input = valid();
+    (input.obstacles as Record<string, unknown>[])[1].layers = 2;
+    const level = parseLevelScript(input, PALETTE);
+    expect(cagedCells(level).map((c) => c.layers)).toEqual([1, 2, 1]);
+  });
+
+  it('is the single enumeration cagedCellIndices reads from', () => {
+    const level = parseLevelScript(valid(), PALETTE);
+    expect(cagedCellIndices(level)).toEqual(cagedCells(level).map((c) => c.index));
+  });
+});
+
+describe('obstacle layers field', () => {
+  it('parses an obstacle with an explicit layers count', () => {
+    const input = valid();
+    (input.obstacles as Record<string, unknown>[])[0].layers = 3;
+    expect(() => parseLevelScript(input, PALETTE)).not.toThrow();
+  });
+
+  it('parses an obstacle with no layers field (no schemaVersion bump)', () => {
+    const level = parseLevelScript(valid(), PALETTE);
+    expect(level.schemaVersion).toBe(1);
+    expect('layers' in level.obstacles[0]).toBe(false);
+  });
+
+  it('rejects layers below 1 or above 5', () => {
+    const tooLow = valid();
+    (tooLow.obstacles as Record<string, unknown>[])[0].layers = 0;
+    expect(() => parseLevelScript(tooLow, PALETTE)).toThrow();
+    const tooHigh = valid();
+    (tooHigh.obstacles as Record<string, unknown>[])[0].layers = 6;
+    expect(() => parseLevelScript(tooHigh, PALETTE)).toThrow();
   });
 });
 

@@ -1,7 +1,7 @@
 import { hasLegalMove } from '../deadlock';
 import { applyResolution, newGame } from '../game';
-import { cagedCellIndices, levelToConfig, type LevelScript } from '../level/level-script';
-import { buildCaged, freeCleared, remapMoves } from '../obstacles/caged-dot';
+import { cagedCells, levelToConfig, type LevelScript } from '../level/level-script';
+import { buildCaged, chipLayers, remapMoves } from '../obstacles/caged-dot';
 import { shuffleBoard } from '../shuffle';
 import type { CellIndex, CellMove, GameState, Resolution } from '../types';
 import { foldObjectives, initObjectives, type ObjectiveProgress } from './objectives';
@@ -20,7 +20,7 @@ export type JourneyState = {
   readonly level: LevelScript;
   readonly timeRemainingMs: number;
   readonly objectives: readonly ObjectiveProgress[];
-  readonly caged: ReadonlySet<CellIndex>;
+  readonly caged: ReadonlyMap<CellIndex, number>;
   readonly status: JourneyStatus;
 };
 
@@ -33,7 +33,7 @@ export type JourneyState = {
 export function newJourney(level: LevelScript, sessionSeed: number): JourneyState {
   const seed = level.seed ?? sessionSeed;
   const game = newGame(levelToConfig(level), seed);
-  const caged = buildCaged(cagedCellIndices(level));
+  const caged = buildCaged(cagedCells(level));
   return {
     game,
     level,
@@ -68,19 +68,19 @@ export function registerMistake(jstate: JourneyState): JourneyState {
 }
 
 /**
- * Folds one accepted resolution into the Journey. Order matters: free the
- * cages that were cleared this resolution, remap the survivors through gravity,
- * THEN score/objectives read the settled overlay. The clear bonus is added
- * once per accepted commit — never scaled by cleared-cell count, or a single
- * board-wide sweep (which frees 20+ dots at once) would make the timer
- * meaningless.
+ * Folds one accepted resolution into the Journey. Order matters: chip the cages
+ * this resolution touched (a 1-layer cage pops, a multi-layer cage sheds one
+ * layer) BEFORE remapping the survivors through gravity, THEN objectives read the
+ * settled overlay. The clear bonus is added once per accepted commit — never
+ * scaled by cleared-cell count, or a single board-wide sweep (which frees 20+
+ * dots at once) would make the timer meaningless.
  */
 export function applyJourneyResolution(jstate: JourneyState, resolution: Resolution): JourneyState {
   if (jstate.status !== 'playing') {
     return jstate;
   }
   const game = applyResolution(jstate.game, resolution);
-  const caged = remapMoves(freeCleared(jstate.caged, resolution), resolution.falls);
+  const caged = remapMoves(chipLayers(jstate.caged, resolution), resolution.falls);
   const objectives = foldObjectives(jstate.objectives, resolution, caged);
   const bonusMs = jstate.level.timer?.clearBonusMs ?? 0;
   const won = objectives.every((entry) => entry.done);

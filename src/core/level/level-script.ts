@@ -43,10 +43,18 @@ const objectiveSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
-/** Obstacle enum: `cagedDot` only, placed positionally (no authored color). */
+/**
+ * Obstacle enum: `cagedDot` only, placed positionally (no authored color).
+ * `layers` is the number of same-colour clears (including the caged dot) needed
+ * to break the cage. Optional and backward-compatible — absent ⇒ treated as `1`
+ * (a single-clear pop, today's behaviour), so no `schemaVersion` bump. Bounded
+ * `[1,5]` so a fat-fingered authored value can't create an unwinnable,
+ * un-solver-checked cage; 5 is a generous ceiling above the boss band's 3.
+ */
 const obstacleSchema = z.object({
   type: z.literal('cagedDot'),
   cell: cellSchema,
+  layers: z.number().int().min(1).max(5).optional(),
 });
 
 const timerSchema = z.object({
@@ -407,10 +415,25 @@ export function levelToConfig(level: LevelScript): GameConfig {
   };
 }
 
-/** Flattens the level's caged cells to row-major board indices (`row * cols + col`). */
-export function cagedCellIndices(level: LevelScript): CellIndex[] {
-  // Obstacle enum is `cagedDot` only, so every obstacle is a cage. When the enum
-  // grows (a schemaVersion bump), filter by `type === 'cagedDot'` here.
+/**
+ * The level's caged cells with their per-cage layer counts — the single source of
+ * truth the overlay and solver seed from. `index` is row-major (`row * cols +
+ * col`); `layers` defaults to `1` when the obstacle omits the field. Obstacle enum
+ * is `cagedDot` only, so every obstacle is a cage. When the enum grows (a
+ * schemaVersion bump), filter by `type === 'cagedDot'` here.
+ */
+export function cagedCells(level: LevelScript): { index: CellIndex; layers: number }[] {
   const { cols } = level.board;
-  return level.obstacles.map((obstacle) => obstacle.cell.row * cols + obstacle.cell.col);
+  return level.obstacles.map((obstacle) => ({
+    index: obstacle.cell.row * cols + obstacle.cell.col,
+    layers: obstacle.layers ?? 1,
+  }));
+}
+
+/**
+ * Flattens the level's caged cells to row-major board indices. Reads the single
+ * `cagedCells` enumeration so the row-major math never drifts between the two.
+ */
+export function cagedCellIndices(level: LevelScript): CellIndex[] {
+  return cagedCells(level).map((c) => c.index);
 }

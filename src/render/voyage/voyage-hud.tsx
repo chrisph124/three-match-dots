@@ -13,7 +13,7 @@ type VoyageHudProps = {
   readonly signals: BossSignals;
   readonly level: LevelScript;
   readonly board: Board;
-  readonly caged: ReadonlySet<CellIndex>;
+  readonly caged: ReadonlyMap<CellIndex, number>;
   readonly reduceMotion: boolean;
 };
 

@@ -9,8 +9,8 @@ import {
   type JourneyState,
 } from '../core/journey/journey-state';
 import { levelToConfig, type LevelScript } from '../core/level/level-script';
-import { resolveChain } from '../core/resolve/resolve-chain';
-import type { Board, Resolution } from '../core/types';
+import { resolveCagedChain } from '../core/resolve-caged-chain';
+import type { Board, ClearedCell, Resolution } from '../core/types';
 import {
   FALL_MS,
   playClear,
@@ -32,6 +32,22 @@ type Options = {
   readonly layout: BoardLayout;
   readonly anim: BoardAnimation;
   readonly chainState: ChainState;
+};
+
+/**
+ * A committed clear, surfaced so the render layer can fire matching juice — the
+ * Journey twin of `VoyageClearEvent`. `seq` increments per clear so an identical
+ * back-to-back clear still re-triggers the effect; `sweep` is true for a
+ * 2×2-loop or ≥line clear (`kind !== 'plain'`); `chipped` carries the multi-layer
+ * caged cells hit but not freed this commit (`resolution.protectedHits`), on a
+ * channel separate from `cleared` because a chip does not pop its dot. Read-only
+ * signal — the effects never feed back into the reducer.
+ */
+export type JourneyClearEvent = {
+  readonly seq: number;
+  readonly cleared: readonly ClearedCell[];
+  readonly sweep: boolean;
+  readonly chipped?: readonly ClearedCell[];
 };
 
 // Plain module-level writers for the Reanimated shared values on `chainState`.
@@ -77,6 +93,12 @@ export function useJourneyState({ level, layout, anim, chainState }: Options) {
 
   const [jstate, setJourney] = useState<JourneyState>(() => newJourney(level, Date.now() >>> 0));
   const latest = useRef(jstate);
+
+  // A per-clear pulse the render layer watches to fire pops / chip feedback. A
+  // pure output of `commit` (never read back by the reducer), so it lives as
+  // display state beside `jstate` — the Journey twin of Voyage's clear event.
+  const clearSeq = useRef(0);
+  const [clearEvent, setClearEvent] = useState<JourneyClearEvent | null>(null);
 
   // Updates React state and the gesture callback's snapshot together. Board
   // mirror is written separately (only when the board actually changes), so
@@ -155,7 +177,10 @@ export function useJourneyState({ level, layout, anim, chainState }: Options) {
 
   const commit = useCallback(
     (chain: number[]) => {
-      const resolution = resolveChain(latest.current.game, chain);
+      // Route through the shared caged wrapper: a multi-layer cage in the chain
+      // chips a layer instead of popping. A cage-free level yields an empty
+      // protected set ⇒ the byte-identical classic resolve.
+      const resolution = resolveCagedChain(latest.current.game, chain, latest.current.caged);
       if (resolution === null) {
         // A wasted attempt costs time — and the penalty can itself end the run.
         const penalized = registerMistake(latest.current);
@@ -167,6 +192,17 @@ export function useJourneyState({ level, layout, anim, chainState }: Options) {
         }
         return;
       }
+      // Surface the clear before the pop plays so juice bursts in time. `chipped`
+      // (multi-layer cages hit but not freed) rides its own channel. A chip-only
+      // commit still takes this identical path — no empty-`cleared` fast-path —
+      // so `playClear`'s unconditional onDone always unlocks input.
+      clearSeq.current += 1;
+      setClearEvent({
+        seq: clearSeq.current,
+        cleared: resolution.cleared,
+        sweep: resolution.kind !== 'plain',
+        ...(resolution.protectedHits ? { chipped: resolution.protectedHits } : {}),
+      });
       playClear(anim, resolution.cleared, () => applyAndDrop(resolution));
     },
     [advance, anim, applyAndDrop, chainState],
@@ -215,9 +251,23 @@ export function useJourneyState({ level, layout, anim, chainState }: Options) {
       board: jstate.game.board,
       timeRemainingMs: jstate.timeRemainingMs,
       objectives: jstate.objectives,
+      // Live caged overlay (index → layers remaining) — the render layer reads it
+      // to draw layer indicators and the teaching-popup trigger keys off it.
+      caged: jstate.caged,
       status: jstate.status,
+      // The last committed clear (or null) — the render layer fires pops / chip
+      // feedback off it; see JourneyClearEvent.
+      event: clearEvent,
       commit,
     }),
-    [jstate.game.board, jstate.timeRemainingMs, jstate.objectives, jstate.status, commit],
+    [
+      jstate.game.board,
+      jstate.timeRemainingMs,
+      jstate.objectives,
+      jstate.caged,
+      jstate.status,
+      clearEvent,
+      commit,
+    ],
   );
 }

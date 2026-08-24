@@ -4,7 +4,14 @@ import { parseLevelScript } from '../level/level-script';
 import { biomeFor } from './biome-rotation';
 import { bossFor } from './boss';
 import { bottomAnchoredCages } from './cage-layout';
-import { EPISODE_1_LAST, VOYAGE_COLS, VOYAGE_ROWS, episodeOf, seedForIndex } from './voyage-config';
+import {
+  EPISODE_1_LAST,
+  VOYAGE_COLS,
+  VOYAGE_ROWS,
+  cageLayersForIndex,
+  episodeOf,
+  seedForIndex,
+} from './voyage-config';
 
 /**
  * The curated Episode-1 teaching ramp (levels 1–10). Where a hand-tuned beat
@@ -23,6 +30,12 @@ type CuratedSpec = {
   readonly constraint: Constraint;
   readonly objectives: LevelScript['objectives'];
   readonly cages: number;
+  /**
+   * Per-cage layer overrides, by cage index. Omitted entries fall back to the
+   * `cageLayersForIndex` band (teach = 1 in Episode 1). Used to author the seeded
+   * 2-layer teaching cage on level 5 directly, without bending the band authority.
+   */
+  readonly cageLayers?: readonly number[];
   readonly designIntent: string;
 };
 
@@ -68,6 +81,11 @@ const CURATED: Readonly<Record<number, CuratedSpec>> = {
     constraint: MOVES(22),
     objectives: [{ type: 'clearColor', color: 0, count: 10 }, { type: 'freeCaged' }],
     cages: 2,
+    // Seed ONE 2-layer teaching cage BEFORE the L10 boss (Validation S1) so the
+    // layered mechanic — and the Phase-6 teaching popup — is met on a low-stakes
+    // mid level, not at the Caged Core. The second cage falls back to teach = 1.
+    // Tunable on-device for pacing; keep L4 as the earlier 1-layer instant-pop.
+    cageLayers: [2],
     designIntent: 'teach/caged-and-clear',
   },
   6: {
@@ -107,6 +125,13 @@ const CURATED: Readonly<Record<number, CuratedSpec>> = {
 /** Builds one curated level from its spec. */
 function curated(index: number, spec: CuratedSpec, paletteSize: number): LevelScript {
   const biome = biomeFor(index);
+  // Cages take the band depth for this index (teach = 1 in Episode 1), with any
+  // authored per-cage override applied on top — the seeded 2-layer teach cage.
+  const bandLayers = cageLayersForIndex(index);
+  const layerCounts = Array.from(
+    { length: spec.cages },
+    (_, k) => spec.cageLayers?.[k] ?? bandLayers,
+  );
   return parseLevelScript(
     {
       schemaVersion: 2,
@@ -131,7 +156,7 @@ function curated(index: number, spec: CuratedSpec, paletteSize: number): LevelSc
         boss: false,
       },
       objectives: spec.objectives,
-      obstacles: bottomAnchoredCages(spec.cages, VOYAGE_COLS, VOYAGE_ROWS),
+      obstacles: bottomAnchoredCages(spec.cages, layerCounts, VOYAGE_COLS, VOYAGE_ROWS),
       designIntent: spec.designIntent,
     },
     paletteSize,

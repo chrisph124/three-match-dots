@@ -9,7 +9,9 @@ import { generateLadder } from './generate-level';
 import { applyCalibratedBudget, calibrateBudget, calibrateConstraint, solve } from './solver';
 import { SOLVER_SAMPLES, SOLVER_TIMED_FLOOR_MS } from './voyage-config';
 
-const PALETTE = 5;
+// Mirror the shipped runtime palette (`DOT_COLORS.length` = 6). A literal, not an
+// import, keeps this core test RN-free — the palette lives in the render layer.
+const PALETTE = 6;
 const LADDER = generateLadder(80, PALETTE);
 const seedOf = (level: LevelScript): number => level.seed ?? 0;
 

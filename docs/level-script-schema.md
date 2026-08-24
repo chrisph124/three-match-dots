@@ -194,7 +194,26 @@ valid. Treat `spawnWeights` as reserved for a possible future weighted-refill fe
 
 ```jsonc
 { "type": "cagedDot", "cell": { "col": 2, "row": 3 } }
+{ "type": "cagedDot", "cell": { "col": 3, "row": 3 }, "layers": 2 } // multi-layer
 ```
+
+**`layers?` (optional, integer 1–5, default 1).** How many same-color clears (each including the caged
+dot) it takes to break the cage. `1` = the original instant-pop intro (omit the field for it — **no
+`schemaVersion` bump**; every existing level parses unchanged). A cage with `layers ≥ 2` stays linkable
+and **chips** one layer per qualifying clear, popping only on the last. The accessor reads
+`obstacle.layers ?? 1` (`cagedCells`, `src/core/level/level-script.ts`).
+
+**Voyage derives depth by band, not per level.** The generated + boss ladder assigns depth from
+`CAGE_LAYERS = { teach: 1, mid: 2, boss: 3 }` (`src/core/voyage/voyage-config.ts`), boss-first, so the whole
+first (teaching) episode is 1-layer unless a curated level authors an override. An authored `layers` value
+always wins over the band default.
+
+**Authored Journey levels are NOT solver-swept**, so a hand-authored `layers ≥ 2` cage must be
+**hand-verified winnable** on-device — the winnability sweep only covers generated + boss levels and any
+_curated_ level that carries a multi-layer cage (which is why such curated levels now route through
+`calibrateLevel`; see `docs/tech-stack-and-infra.md`). Two `layers: 2` instances ship this slice:
+**japan-01's** center cage (Journey, hand-verified) and the **seeded pre-boss Voyage teaching cage** (the
+one curated multi-layer level routed through the solver sweep).
 
 No authored `color`. The shipped board dealer (`newGame`, `src/core/game.ts`) fills every cell by RNG
 with no per-cell override, so an authored `color` on a cage would be decorative at best and misleading at
@@ -212,13 +231,21 @@ catalog entries for a later `schemaVersion`, not validated yet.
 
 ## Freeing semantics
 
-A caged cell is freed by **any** clear of its color — a normal `≥minChain` chain, a 2×2-loop sweep, or a
+A caged cell is affected by **any** clear of its color — a normal `≥minChain` chain, a 2×2-loop sweep, or a
 `≥lineLength` straight-line sweep. `src/core/resolve/collect-cleared.ts` marks every same-color cell on
 the board `reason: 'color-sweep'` for a loop or line clear, not just the chain cells, so loop and line
-sweeps clear that color **board-wide** — a single sweep can free every caged cell of that color at once.
+sweeps reach that color **board-wide** — a single sweep touches every caged cell of that color at once.
 This is a **tuning consideration for level authors**, not just a chain-adjacency detail: placing several
-same-color cages expecting them to be freed one at a time will instead free them all together the first
-time that color sweeps.
+same-color cages expecting them to be freed one at a time will instead have them all affected together the
+first time that color sweeps.
+
+**With layers:** a 1-layer cage frees on the first such clear (unchanged). A `layers ≥ 2` cage is
+**protected** — `resolveCagedChain` (`src/core/resolve-caged-chain.ts`) passes the `protectedOf(caged)`
+set (every cage with ≥2 layers) into `resolveChain`, which lets the caged dot link, count, and classify
+on the full chain/sweep but partitions it into `Resolution.protectedHits` instead of `cleared`: it **chips**
+one layer rather than popping. It frees (pops) only on the clear that removes its last layer. So a
+board-wide color sweep peels **one** layer from every same-color cage at once, freeing only those then on
+their final layer — a deep cage survives a sweep it shares with shallower ones.
 
 ## Field rules / validation
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { cagedCells } from '../level/level-script';
 import { episodeOneLevel, isEpisodeOne } from './episode-1';
 
 const PALETTE = 5;
@@ -53,5 +54,26 @@ describe('episodeOneLevel', () => {
 
     // Level 10 is the boss.
     expect(levels[9].voyage?.isBoss).toBe(true);
+  });
+});
+
+describe('episode-1 cage layers (Validation S1)', () => {
+  it('keeps level 4 a 1-layer instant-pop cage (no layers field)', () => {
+    const level = episodeOneLevel(4, PALETTE);
+    expect(level.obstacles).toHaveLength(1);
+    expect(level.obstacles.every((o) => o.layers === undefined)).toBe(true);
+    expect(cagedCells(level).every((c) => c.layers === 1)).toBe(true);
+  });
+
+  it('seeds a 2-layer teaching cage on the pre-boss level 5', () => {
+    const level = episodeOneLevel(5, PALETTE);
+    const layers = cagedCells(level).map((c) => c.layers);
+    expect(layers).toContain(2); // at least one multi-layer teaching cage
+    expect(Math.max(...layers)).toBe(2); // never above the mid band before the boss
+  });
+
+  it('keeps level 9 cages 1-layer (teach band, no authored override)', () => {
+    const level = episodeOneLevel(9, PALETTE);
+    expect(cagedCells(level).every((c) => c.layers === 1)).toBe(true);
   });
 });

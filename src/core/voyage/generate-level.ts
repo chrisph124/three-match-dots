@@ -1,5 +1,5 @@
 import type { Constraint, LevelScript } from '../level/level-script';
-import { parseLevelScript } from '../level/level-script';
+import { cagedCells, parseLevelScript } from '../level/level-script';
 import { nextInt } from '../rng';
 import { ARCHETYPE_POOL, type ObjectiveKind } from './archetypes';
 import { biomeFor } from './biome-rotation';
@@ -11,7 +11,6 @@ import { episodeOneLevel, isEpisodeOne } from './episode-1';
 import { signatureOf, similarity, type Signature } from './level-signature';
 import { calibrateConstraint } from './solver';
 import {
-  BOSS_EVERY,
   MISTAKES_CAP,
   SOLVER_BOSS_SLACK,
   SOLVER_SAMPLES,
@@ -24,8 +23,10 @@ import {
   VARIETY_WINDOW,
   VOYAGE_COLS,
   VOYAGE_ROWS,
+  cageLayersForIndex,
   clearCountFor,
   episodeOf,
+  isBossIndex,
   mixSeed,
   moveBudgetForTighten,
   seedForIndex,
@@ -112,6 +113,10 @@ function buildGenerated(index: number, paletteSize: number, attempt: number): Le
   const needsCages = archetype.objective === 'caged' || archetype.objective === 'colorAndCaged';
   const obstacleCount = needsCages ? Math.max(1, dials.obstacleCount) : dials.obstacleCount;
   const objectives = buildObjectives(archetype.objective, dials.colors, D, constraintPick.state);
+  // Every cage on this generated (non-curated, non-boss) index takes the same
+  // band depth — mid past Episode 1 — from the single band authority.
+  const cageLayers = cageLayersForIndex(index);
+  const layerCounts = Array.from({ length: obstacleCount }, () => cageLayers);
 
   const biome = biomeFor(index);
   return parseLevelScript(
@@ -138,7 +143,7 @@ function buildGenerated(index: number, paletteSize: number, attempt: number): Le
         boss: false,
       },
       objectives,
-      obstacles: bottomAnchoredCages(obstacleCount, VOYAGE_COLS, VOYAGE_ROWS),
+      obstacles: bottomAnchoredCages(obstacleCount, layerCounts, VOYAGE_COLS, VOYAGE_ROWS),
       designIntent: `voyage/${archetype.key}`,
     },
     paletteSize,
@@ -184,11 +189,6 @@ function generateVaried(
   return best;
 }
 
-/** True for a boss index (`index % 10 === 0`). */
-function isBossIndex(index: number): boolean {
-  return index % BOSS_EVERY === 0;
-}
-
 /**
  * Replaces a level's candidate budget with one calibrated from real solver play,
  * then re-validates. `slack` widens for bosses (`SOLVER_BOSS_SLACK`) to hit the
@@ -200,11 +200,18 @@ function calibrateLevel(level: LevelScript, paletteSize: number, slack: number):
   return parseLevelScript({ ...level, constraint }, paletteSize);
 }
 
+/** Whether any cage on the level needs more than one hit to break. */
+function hasMultiLayerCage(level: LevelScript): boolean {
+  return cagedCells(level).some((cage) => cage.layers >= 2);
+}
+
 /**
  * Produces the level for a single index, given the current variety window, with
  * its budget calibrated by the solver. Curated Episode-1 teaching levels (1..9)
- * keep their hand-authored budgets; bosses (including the level-10 Caged Core)
- * and every generated level are solver-calibrated.
+ * keep their hand-authored budgets — EXCEPT when one seeds a multi-layer cage
+ * (L5's 2-layer teaching cage), which needs the extra moves a deeper cage costs,
+ * so it routes through the solver like a generated level. Bosses (including the
+ * level-10 Caged Core) and every generated level are always solver-calibrated.
  */
 function generateOne(
   index: number,
@@ -213,7 +220,10 @@ function generateOne(
 ): LevelScript {
   if (isEpisodeOne(index)) {
     const level = episodeOneLevel(index, paletteSize);
-    return isBossIndex(index) ? calibrateLevel(level, paletteSize, SOLVER_BOSS_SLACK) : level;
+    if (isBossIndex(index)) {
+      return calibrateLevel(level, paletteSize, SOLVER_BOSS_SLACK);
+    }
+    return hasMultiLayerCage(level) ? calibrateLevel(level, paletteSize, SOLVER_SLACK) : level;
   }
   if (isBossIndex(index)) {
     return calibrateLevel(bossFor(index, paletteSize), paletteSize, SOLVER_BOSS_SLACK);

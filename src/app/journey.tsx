@@ -4,12 +4,17 @@ import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-na
 import { GestureDetector } from 'react-native-gesture-handler';
 import { levelToConfig, parseLevelScript, type LevelScript } from '../core/level/level-script';
 import type { ObjectiveProgress } from '../core/journey/objectives';
+import { protectedOf } from '../core/obstacles/caged-dot';
 import { useBoardAnimation } from '../effects/use-board-animation';
 import { useBoardGesture, useChainState } from '../input/use-board-gesture';
 import { useJourneyState } from '../meta/use-journey-state';
+import { hasSeenCageIntro, markCageIntroSeen } from '../meta/tutorial-flags';
 import { BoardCanvas } from '../render/board-canvas';
+import { CageIntroPopup } from '../render/cage-intro-popup';
+import { CageOverlayLayer } from '../render/cage-overlay-layer';
 import { makeLayout } from '../render/geometry';
 import { colorFor, DOT_COLORS, SCREEN_BACKGROUND, TEXT_COLOR } from '../render/palette';
+import { useReduceMotion } from '../render/voyage/voyage-effects';
 import rawLevel from '../../assets/levels/japan-01.json';
 
 /** Turns remaining milliseconds into a M:SS countdown. `ceil` so the clock
@@ -55,6 +60,7 @@ function JourneyRun({ level, onRestart }: { level: LevelScript; onRestart: () =>
   );
   const anim = useBoardAnimation(cellCount);
   const chainState = useChainState(new Array<number>(cellCount).fill(0));
+  const reduceMotion = useReduceMotion();
 
   const journey = useJourneyState({ level, layout, anim, chainState });
 
@@ -69,6 +75,21 @@ function JourneyRun({ level, onRestart }: { level: LevelScript; onRestart: () =>
 
   const over = journey.status !== 'playing';
 
+  // Teach the layered-cage mechanic once per install, the first time a level
+  // deals a cage with 2+ layers. `protectedOf` is exactly the ≥2-layer set, so
+  // a single-layer L4-style cage never triggers it. Read once at mount (the
+  // dealt board already carries its cages); dismissing with "don't show again"
+  // records the flag synchronously so it can't reappear on the next level.
+  const [showCageIntro, setShowCageIntro] = useState(
+    () => !hasSeenCageIntro() && protectedOf(journey.caged).size > 0,
+  );
+  const dismissCageIntro = (dontShowAgain: boolean) => {
+    if (dontShowAgain) {
+      markCageIntroSeen();
+    }
+    setShowCageIntro(false);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.hud}>
@@ -81,8 +102,15 @@ function JourneyRun({ level, onRestart }: { level: LevelScript; onRestart: () =>
       </View>
 
       <GestureDetector gesture={gesture}>
-        <View>
+        <View style={{ width: boardSize, height: boardSize }}>
           <BoardCanvas board={journey.board} layout={layout} anim={anim} chainState={chainState} />
+          <CageOverlayLayer
+            caged={journey.caged}
+            event={journey.event}
+            layout={layout}
+            anim={anim}
+            reduceMotion={reduceMotion}
+          />
         </View>
       </GestureDetector>
 
@@ -103,6 +131,8 @@ function JourneyRun({ level, onRestart }: { level: LevelScript; onRestart: () =>
           </Link>
         </View>
       ) : null}
+
+      {showCageIntro ? <CageIntroPopup onDismiss={dismissCageIntro} /> : null}
     </View>
   );
 }

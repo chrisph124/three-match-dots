@@ -1,14 +1,14 @@
 import { hasLegalMove } from '../deadlock';
 import { applyResolution, newGame } from '../game';
 import {
-  cagedCellIndices,
+  cagedCells,
   constraintOf,
   levelToConfig,
   type Constraint,
   type LevelScript,
 } from '../level/level-script';
 import { foldObjectives, initObjectives, type ObjectiveProgress } from '../journey/objectives';
-import { buildCaged, freeCleared, remapMoves } from '../obstacles/caged-dot';
+import { buildCaged, chipLayers, remapMoves } from '../obstacles/caged-dot';
 import { shuffleBoard } from '../shuffle';
 import type { CellIndex, CellMove, GameState, Resolution } from '../types';
 
@@ -35,7 +35,7 @@ export type VoyageState = {
   readonly level: LevelScript;
   readonly budget: VoyageBudget;
   readonly objectives: readonly ObjectiveProgress[];
-  readonly caged: ReadonlySet<CellIndex>;
+  readonly caged: ReadonlyMap<CellIndex, number>;
   readonly status: VoyageStatus;
 };
 
@@ -60,7 +60,7 @@ function initBudget(constraint: Constraint): VoyageBudget {
 export function newVoyage(level: LevelScript, sessionSeed: number): VoyageState {
   const seed = level.seed ?? sessionSeed;
   const game = newGame(levelToConfig(level), seed);
-  const caged = buildCaged(cagedCellIndices(level));
+  const caged = buildCaged(cagedCells(level));
   return {
     game,
     level,
@@ -113,9 +113,11 @@ function spendOnClear(budget: VoyageBudget, constraint: Constraint): VoyageBudge
 }
 
 /**
- * Folds one accepted resolution into the Voyage. Order mirrors Journey: free the
- * cages cleared this resolution, remap survivors through gravity, THEN read
- * objectives off the settled overlay, THEN apply the budget effect.
+ * Folds one accepted resolution into the Voyage. Order mirrors Journey: chip the
+ * cages this resolution touched (pop a 1-layer cage, decrement a multi-layer one)
+ * BEFORE remapping survivors through gravity, THEN read objectives off the settled
+ * overlay, THEN apply the budget effect. Chip-then-remap matters: a cage's layer
+ * must resolve while its key is still the pre-gravity index.
  *
  * Win-before-loss: if every objective is `done`, the status is `won` regardless
  * of the remaining budget — a final move that both empties the last cage and
@@ -126,7 +128,7 @@ export function applyVoyageResolution(vstate: VoyageState, resolution: Resolutio
     return vstate;
   }
   const game = applyResolution(vstate.game, resolution);
-  const caged = remapMoves(freeCleared(vstate.caged, resolution), resolution.falls);
+  const caged = remapMoves(chipLayers(vstate.caged, resolution), resolution.falls);
   const objectives = foldObjectives(vstate.objectives, resolution, caged);
   const won = objectives.every((entry) => entry.done);
   const budget = spendOnClear(vstate.budget, constraintOf(vstate.level));

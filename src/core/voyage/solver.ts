@@ -1,5 +1,6 @@
 import { constraintOf, type Constraint, type LevelScript } from '../level/level-script';
 import type { ObjectiveProgress } from '../journey/objectives';
+import { chipLayersInner, protectedOf } from '../obstacles/caged-dot';
 import { resolveChain } from '../resolve/resolve-chain';
 import type { Board, CellIndex } from '../types';
 import { enumerateMoves, type Move } from './enumerate-moves';
@@ -57,26 +58,63 @@ function cellsOfColor(board: Board, color: number): CellIndex[] {
   return cells;
 }
 
-/** How many cells this move would clear that advance one unmet objective. */
-function objectiveGain(
+/**
+ * The clear/chip split for a candidate move's touched cells, resolved by the SAME
+ * rule the runtime applies (`protectedOf` + `chipLayersInner` from Phase 3) so the
+ * solver's heuristic can never diverge from the hook's freeing behaviour — the
+ * level-83 divergence lesson. Returns:
+ *  - `pops`        — cells that actually clear; a multi-layer cage (protected) is
+ *                    excluded because it chips instead of popping. This is the set
+ *                    `clearColor` counts, mirroring `foldObjectives` (chips never
+ *                    count as colour clears — red-team F13).
+ *  - `layersFreed` — total cage layers removed this move (each chip AND each final
+ *                    pop is one), so the greedy bot is drawn toward chipping a deep
+ *                    cage rather than seeing zero progress until its last layer.
+ */
+export function cageMoveEffect(
+  caged: ReadonlyMap<CellIndex, number>,
+  touched: readonly CellIndex[],
+): { readonly pops: CellIndex[]; readonly layersFreed: number } {
+  if (caged.size === 0) {
+    return { pops: [...touched], layersFreed: 0 };
+  }
+  const protectedCells = protectedOf(caged);
+  const pops: CellIndex[] = [];
+  const chipped: CellIndex[] = [];
+  for (const cell of touched) {
+    if (protectedCells.has(cell)) {
+      chipped.push(cell);
+    } else {
+      pops.push(cell);
+    }
+  }
+  const after = chipLayersInner(caged, pops, chipped);
+  let layersFreed = 0;
+  for (const [index, layers] of caged) {
+    layersFreed += layers - (after.get(index) ?? 0);
+  }
+  return { pops, layersFreed };
+}
+
+/**
+ * How much a move advances one unmet objective. `clearColor` counts only true pops
+ * (chipped cages excluded, matching `foldObjectives`); `freeCaged` credits every
+ * layer removed this move — a heuristic that steers the greedy policy, distinct
+ * from the win check, which frees a cage only when its last layer falls.
+ */
+export function objectiveGain(
   entry: ObjectiveProgress,
   moveColor: number,
-  cleared: readonly CellIndex[],
-  caged: ReadonlySet<CellIndex>,
+  pops: readonly CellIndex[],
+  layersFreed: number,
 ): number {
   if (entry.objective.type === 'clearColor') {
     if (entry.objective.color !== moveColor) {
       return 0;
     }
-    return Math.min(entry.target - entry.current, cleared.length);
+    return Math.min(entry.target - entry.current, pops.length);
   }
-  let freed = 0;
-  for (const cell of cleared) {
-    if (caged.has(cell)) {
-      freed += 1;
-    }
-  }
-  return freed;
+  return layersFreed;
 }
 
 /** A move ranked against the live objectives — the policy's decision record. */
@@ -93,14 +131,15 @@ function scoreMove(move: Move, vstate: VoyageState): Scored {
   const { board } = vstate.game;
   const color = board[move.chain[0]];
   const isSweep = move.kind !== 'plain';
-  const cleared = isSweep ? cellsOfColor(board, color) : Array.from(new Set(move.chain));
+  const touched = isSweep ? cellsOfColor(board, color) : Array.from(new Set(move.chain));
+  const { pops, layersFreed } = cageMoveEffect(vstate.caged, touched);
   let adv = 0;
   for (const entry of vstate.objectives) {
     if (!entry.done) {
-      adv += objectiveGain(entry, color, cleared, vstate.caged);
+      adv += objectiveGain(entry, color, pops, layersFreed);
     }
   }
-  return { move, adv, isSweep, clearedCount: cleared.length, firstCell: move.chain[0] };
+  return { move, adv, isSweep, clearedCount: pops.length, firstCell: move.chain[0] };
 }
 
 /** Strict ordering: advancement, then sweeps, then bigger clears, then low index. */
@@ -145,7 +184,11 @@ function stepOnce(vstate: VoyageState, tickClock: boolean): StepOutcome {
   if (moves.length === 0) {
     return { vstate: settled, committed: false, halted: true };
   }
-  const resolution = resolveChain(settled.game, pickBest(moves, settled).chain);
+  const resolution = resolveChain(
+    settled.game,
+    pickBest(moves, settled).chain,
+    protectedOf(settled.caged),
+  );
   if (resolution === null) {
     return { vstate: settled, committed: false, halted: true };
   }
