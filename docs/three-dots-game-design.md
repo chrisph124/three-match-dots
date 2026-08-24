@@ -114,7 +114,9 @@ relaxed niche, and give the future economy a clean home in Journey without taxin
 - Each city level starts with a **time budget** `T` (per-level, authored in the level script).
 - **Objectives** (authored per level): e.g. _clear N red dots_, _free all caged dots_ — Two-Dots/Candy-lineage
   goals, one or more per city. See `docs/level-script-schema.md` for the exact objective kinds a level can
-  author today.
+  author today. A `clearColor` objective counts only an **actual pop** of its color: chipping a multi-layer
+  cage of the target color (peeling a layer without freeing the dot) does **not** advance it — only the pop
+  when the cage finally breaks, plus any uncaged dots cleared, counts.
 - **Mistake penalty:** an invalid link attempt (wrong color / non-adjacent, or a chain shorter than
   `minChain` on release) subtracts a small amount of time. Exact value tuned on-device; authored as a
   level/global config.
@@ -127,16 +129,25 @@ relaxed niche, and give the future economy a clean home in Journey without taxin
 
 Obstacles live in the level script and are introduced gradually (one new idea per early city):
 
-| Obstacle            | Behavior                                                  | Clears when                                                                                                                                                                                      |
-| ------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Caged dot**       | A dot locked in a paper cage; can't be linked while caged | Any clear of its color — a normal chain, a loop-sweep, or a line-sweep. See `docs/level-script-schema.md` for the exact freeing semantics (loop/line sweeps free every same-color cage at once). |
-| **Anchor / weight** | Occupies a cell, falls with gravity but isn't linkable    | Cleared by an adjacent chain per rule (tunable)                                                                                                                                                  |
-| **Locked tile**     | A cell that can't hold a dot until unlocked               | Unlock condition met (e.g. N nearby clears)                                                                                                                                                      |
-| **Color lock**      | Region temporarily restricted to certain colors           | Objective/step reached                                                                                                                                                                           |
+| Obstacle            | Behavior                                                                                                                                                                                                                                                                                      | Clears when                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Caged dot**       | A dot wrapped in a paper cage of 1+ layers. It **stays linkable** — a caged dot can be part of a same-color chain. Each clear of its color that includes it peels one layer (a "chip"); it pops and frees only when the last layer is peeled. The remaining layer count is drawn on the cage. | Peeled by clears of its color — a normal chain, a loop-sweep, or a line-sweep. A loop/line color-sweep peels one layer from EVERY same-color cage at once (freeing any then on their last layer). A 1-layer cage frees on the first such clear (unchanged from the original intro). See `docs/level-script-schema.md` for the `layers` field and exact freeing semantics. |
+| **Anchor / weight** | Occupies a cell, falls with gravity but isn't linkable                                                                                                                                                                                                                                        | Cleared by an adjacent chain per rule (tunable)                                                                                                                                                                                                                                                                                                                           |
+| **Locked tile**     | A cell that can't hold a dot until unlocked                                                                                                                                                                                                                                                   | Unlock condition met (e.g. N nearby clears)                                                                                                                                                                                                                                                                                                                               |
+| **Color lock**      | Region temporarily restricted to certain colors                                                                                                                                                                                                                                               | Objective/step reached                                                                                                                                                                                                                                                                                                                                                    |
 
 The v1 slice ships **one** obstacle (the **caged dot**) fully; the rest are catalog entries the
 `level-designer` and schema support in design but aren't yet in the validated schema (see
 `docs/level-script-schema.md`'s obstacle-type note). Keep the catalog small until the timed loop is proven.
+
+**Layered cages & first teach.** A cage carries 1+ layers (see the `layers` field in
+`docs/level-script-schema.md`). The Voyage ladder derives cage depth by band — `{ teach: 1, mid: 2, boss: 3 }`,
+boss-first, so the whole first (teaching) episode is 1-layer except an authored override — while the multi-layer
+mechanic is introduced **gently, pre-boss**: a low-stakes seeded 2-layer teaching cage on the pre-boss level
+(and Journey's japan-01), **not** on the L10 Caged Core boss. The first time a player meets any `layers ≥ 2`
+cage, a one-time, dismissible popup ("don't show again", per install) explains that clearing the color peels a
+layer. Every generated + boss level, and any curated level carrying a multi-layer cage, is solver-swept to stay
+provably winnable under its budget (see `docs/tech-stack-and-infra.md`).
 
 ## Art direction (summary — full rules in the creative bible)
 

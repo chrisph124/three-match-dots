@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { hasLegalMove } from '../deadlock';
 import { newGame } from '../game';
 import { levelToConfig, parseLevelScript, type LevelScript } from '../level/level-script';
+import { protectedOf } from '../obstacles/caged-dot';
 import { resolveChain } from '../resolve/resolve-chain';
 import { parseBoard } from '../test-support/board-fixture';
-import type { Color, GameConfig } from '../types';
+import type { Color, GameConfig, Resolution } from '../types';
 import { initObjectives, type Objective } from './objectives';
 import {
   applyJourneyResolution,
@@ -55,7 +56,7 @@ function parsedLevel(timer: {
 function journeyOf(opts: {
   board: Color[];
   config: GameConfig;
-  caged: Set<number>;
+  caged: Map<number, number>;
   objectives: Objective[];
   timeRemainingMs: number;
   level: LevelScript;
@@ -124,7 +125,7 @@ describe('newJourney', () => {
   it('seeds time, cages, objectives and status from the level', () => {
     const jstate = newJourney(level, 999);
     expect(jstate.timeRemainingMs).toBe(60000);
-    expect([...jstate.caged].sort((a, b) => a - b)).toEqual([20, 21, 22]);
+    expect([...jstate.caged.keys()].sort((a, b) => a - b)).toEqual([20, 21, 22]);
     expect(jstate.status).toBe('playing');
     expect(jstate.objectives).toHaveLength(2);
     const freeCaged = jstate.objectives.find((o) => o.objective.type === 'freeCaged');
@@ -138,7 +139,7 @@ describe('tick', () => {
     journeyOf({
       board: parseBoard('RRRB/BGBG/GBGB/BGBG').board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       timeRemainingMs: 5000,
       level,
@@ -170,7 +171,7 @@ describe('registerMistake', () => {
     journeyOf({
       board: parseBoard('RRRB/BGBG/GBGB/BGBG').board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       timeRemainingMs,
       level,
@@ -210,7 +211,7 @@ describe('applyJourneyResolution', () => {
     const jstate = journeyOf({
       board,
       config: CONFIG_4X4,
-      caged: new Set([1]), // a caged cell inside the cleared chain
+      caged: new Map([[1, 1]]), // a caged cell inside the cleared chain
       objectives: [{ type: 'clearColor', color: 0, count: 3 }, { type: 'freeCaged' }],
       timeRemainingMs: 10000,
       level: parsedLevel({ startMs: 10000, mistakePenaltyMs: 2000, clearBonusMs: 0 }),
@@ -226,12 +227,53 @@ describe('applyJourneyResolution', () => {
     expect(out.status).toBe('won');
   });
 
+  it('chips a 2-layer cage first (dot survives), pops it on the second clear (freeCaged wins)', () => {
+    const board = parseBoard(ART).board;
+    const jstate = journeyOf({
+      board,
+      config: CONFIG_4X4,
+      caged: new Map([[1, 2]]), // a 2-layer cage inside the RRR chain
+      objectives: [{ type: 'freeCaged' }],
+      timeRemainingMs: 10000,
+      level: parsedLevel({ startMs: 10000, mistakePenaltyMs: 2000, clearBonusMs: 0 }),
+    });
+
+    // First clear: chain [0,1,2] with index 1 protected → 0 and 2 clear, 1 is a
+    // protectedHit that chips its cage 2 → 1 and keeps its dot on the board.
+    const chip = resolveChain(jstate.game, [0, 1, 2], protectedOf(jstate.caged));
+    if (chip === null) {
+      throw new Error('chip chain must resolve');
+    }
+    const afterChip = applyJourneyResolution(jstate, chip);
+    expect(afterChip.caged.get(1)).toBe(1); // 2 → 1, still caged
+    expect(afterChip.game.board[1]).toBe(0); // the caged dot survives in place
+    expect(afterChip.objectives.find((o) => o.objective.type === 'freeCaged')?.done).toBe(false);
+    expect(afterChip.status).toBe('playing');
+
+    // Second clear pops the now-1-layer cage (a 1-layer cage is never protected):
+    // a synthetic resolution that clears index 1. Its last layer gone, freeCaged
+    // completes → win.
+    const pop: Resolution = {
+      kind: 'plain',
+      color: 0,
+      cleared: [{ index: 1, color: 0, reason: 'chain' }],
+      falls: [],
+      spawns: [],
+      scoreDelta: 10,
+      board: afterChip.game.board,
+      rngState: afterChip.game.rngState,
+    };
+    const afterPop = applyJourneyResolution(afterChip, pop);
+    expect(afterPop.caged.size).toBe(0);
+    expect(afterPop.status).toBe('won');
+  });
+
   it('stays playing while any objective is unmet', () => {
     const board = parseBoard(ART).board;
     const jstate = journeyOf({
       board,
       config: CONFIG_4X4,
-      caged: new Set([15]), // a cage NOT in the cleared chain
+      caged: new Map([[15, 1]]), // a cage NOT in the cleared chain
       objectives: [{ type: 'clearColor', color: 0, count: 20 }, { type: 'freeCaged' }],
       timeRemainingMs: 10000,
       level: parsedLevel({ startMs: 10000, mistakePenaltyMs: 2000, clearBonusMs: 0 }),
@@ -248,7 +290,7 @@ describe('applyJourneyResolution', () => {
     const jstate = journeyOf({
       board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 20 }],
       timeRemainingMs: 10000,
       level: parsedLevel({ startMs: 10000, mistakePenaltyMs: 2000, clearBonusMs: 500 }),
@@ -270,7 +312,7 @@ describe('settleJourney', () => {
     const jstate = journeyOf({
       board: parsed.board,
       config: CONFIG_4X4,
-      caged: new Set([5]),
+      caged: new Map([[5, 1]]),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       timeRemainingMs: 5000,
       level,
@@ -288,7 +330,7 @@ describe('settleJourney', () => {
     const jstate = journeyOf({
       board: parseBoard('RRRB/BGBG/GBGB/BGBG').board,
       config: CONFIG_4X4,
-      caged: new Set([5]),
+      caged: new Map([[5, 1]]),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       timeRemainingMs: 5000,
       level,

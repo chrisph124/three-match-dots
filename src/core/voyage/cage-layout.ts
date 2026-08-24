@@ -10,13 +10,23 @@ import type { Obstacle } from '../level/level-script';
  * Pure TS (no RN/Skia). Cells are distinct by construction (each `k` maps to a
  * unique `(row, col)`), so the placement never trips the schema's duplicate-cell
  * guard as long as `count ≤ rows × cols`.
+ *
+ * `layerCounts[k]` is the layer depth of the k-th cage (absent ⇒ 1). A 1-layer
+ * cage omits the `layers` field entirely, so a pre-layers layout stays
+ * byte-identical — only a genuinely multi-layer cage carries the key.
  */
-export function bottomAnchoredCages(count: number, cols: number, rows: number): Obstacle[] {
+export function bottomAnchoredCages(
+  count: number,
+  layerCounts: readonly number[],
+  cols: number,
+  rows: number,
+): Obstacle[] {
   const cages: Obstacle[] = [];
   for (let k = 0; k < count; k += 1) {
     const row = rows - 1 - Math.floor(k / cols);
     const col = k % cols;
-    cages.push({ type: 'cagedDot', cell: { col, row } });
+    const layers = layerCounts[k] ?? 1;
+    cages.push({ type: 'cagedDot', cell: { col, row }, ...(layers > 1 ? { layers } : {}) });
   }
   return cages;
 }

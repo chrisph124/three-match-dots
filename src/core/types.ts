@@ -88,6 +88,15 @@ export type Resolution = {
   readonly heat?: number;
   /** True when this commit AND the previous one were both sweeps (optional ⇒ false). */
   readonly doubleSweep?: boolean;
+  /**
+   * Collected cells that were shielded from removal by `resolveChain`'s
+   * protected-cells param — same `ClearedCell` shape and row-major/drag order as
+   * `cleared`, so the render layer can stagger a chip animation identically to a
+   * pop. Absent (like `heat`) whenever no protected cell was actually hit, keeping
+   * the byte-identical shape for every default 2-arg caller. Mechanic-agnostic:
+   * the core never learns why a cell is protected (see resolve-chain.ts).
+   */
+  readonly protectedHits?: readonly ClearedCell[];
 };
 
 export type GameState = {

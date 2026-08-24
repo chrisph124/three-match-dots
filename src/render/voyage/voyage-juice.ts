@@ -62,13 +62,16 @@ export function fireClearJuice(
 
 /**
  * A cage freeing → a pale seal-thud at the freed cells' centroid. Gated strictly
- * on the caged set SHRINKING, so a mere gravity-remap of a still-caged dot (same
- * size, different indices) never fires a spurious ring.
+ * on the caged overlay SHRINKING (a key removed = a cage fully broken), so a
+ * mere gravity-remap of a still-caged dot (same size, different indices) — or a
+ * chip that only decrements a layer without freeing — never fires a spurious
+ * ring. The layer-count values are ignored here; only cage presence matters for
+ * the free thud (chip feedback is a separate Phase-5 channel).
  */
 export function fireCageJuice(
   fx: VoyageEffects,
-  prev: ReadonlySet<CellIndex>,
-  next: ReadonlySet<CellIndex>,
+  prev: ReadonlyMap<CellIndex, number>,
+  next: ReadonlyMap<CellIndex, number>,
   layout: BoardLayout,
   reduced: boolean,
 ): void {
@@ -76,7 +79,7 @@ export function fireCageJuice(
     return;
   }
   const freed: CellIndex[] = [];
-  for (const idx of prev) {
+  for (const idx of prev.keys()) {
     if (!next.has(idx)) {
       freed.push(idx);
     }

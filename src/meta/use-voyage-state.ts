@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { constraintOf, levelToConfig, type LevelScript } from '../core/level/level-script';
-import { resolveChain } from '../core/resolve/resolve-chain';
+import { resolveCagedChain } from '../core/resolve-caged-chain';
 import type { Board, ClearedCell, Resolution } from '../core/types';
 import {
   applyVoyageResolution,
@@ -38,13 +38,17 @@ type Options = {
  * A committed clear, surfaced so the render layer can fire matching juice
  * (shards per pop, a ripple on a colour-sweep). `seq` increments per clear so
  * an identical back-to-back clear still re-triggers the effect; `sweep` is true
- * for a 2×2-loop or ≥line clear (`kind !== 'plain'`). Read-only signal — the
+ * for a 2×2-loop or ≥line clear (`kind !== 'plain'`). `chipped` carries the
+ * multi-layer caged cells that were HIT but not freed this commit (from
+ * `resolution.protectedHits`) — a separate channel from `cleared` because a chip
+ * decrements a cage's layer without popping its dot. Read-only signal — the
  * effects never feed back into the reducer.
  */
 export type VoyageClearEvent = {
   readonly seq: number;
   readonly cleared: readonly ClearedCell[];
   readonly sweep: boolean;
+  readonly chipped?: readonly ClearedCell[];
 };
 
 // Plain module-level writers for the Reanimated shared values on `chainState`.
@@ -179,7 +183,10 @@ export function useVoyageState({ level, layout, anim, chainState }: Options) {
 
   const commit = useCallback(
     (chain: number[]) => {
-      const resolution = resolveChain(latest.current.game, chain);
+      // Route through the shared caged wrapper: it protects every multi-layer
+      // cage so a hit chips a layer instead of popping the dot. A cage-free board
+      // yields an empty protected set ⇒ the byte-identical classic resolve.
+      const resolution = resolveCagedChain(latest.current.game, chain, latest.current.caged);
       if (resolution === null) {
         // A wasted attempt can cost the budget (timed/mistakes) — and the
         // penalty can itself end the run. For a moves budget it's a no-op.
@@ -194,12 +201,16 @@ export function useVoyageState({ level, layout, anim, chainState }: Options) {
       }
       // Surface the clear for the render layer's juice before the pop plays, so
       // shards burst in time with the dots shrinking. A sweep (loop/line) also
-      // gets a ripple — see `voyage-juice.ts`.
+      // gets a ripple — see `voyage-juice.ts`. `chipped` (multi-layer cages hit
+      // but not freed) rides the same event on its own channel. A chip-only
+      // commit still takes this identical path — no empty-`cleared` fast-path —
+      // so `playClear`'s unconditional onDone always unlocks input.
       clearSeq.current += 1;
       setClearEvent({
         seq: clearSeq.current,
         cleared: resolution.cleared,
         sweep: resolution.kind !== 'plain',
+        ...(resolution.protectedHits ? { chipped: resolution.protectedHits } : {}),
       });
       playClear(anim, resolution.cleared, () => applyAndDrop(resolution));
     },

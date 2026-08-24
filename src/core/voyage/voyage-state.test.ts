@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { hasLegalMove } from '../deadlock';
 import { newGame } from '../game';
 import { levelToConfig, parseLevelScript, type LevelScript } from '../level/level-script';
+import { protectedOf } from '../obstacles/caged-dot';
 import { resolveChain } from '../resolve/resolve-chain';
 import { parseBoard } from '../test-support/board-fixture';
 import { initObjectives, type Objective } from '../journey/objectives';
-import type { Color, GameConfig } from '../types';
+import type { Color, GameConfig, Resolution } from '../types';
 import {
   applyVoyageResolution,
   newVoyage,
@@ -72,7 +73,7 @@ const MISTAKES = { type: 'mistakes', cap: 3 };
 function voyageOf(opts: {
   board: Color[];
   config: GameConfig;
-  caged: Set<number>;
+  caged: Map<number, number>;
   objectives: Objective[];
   budget: VoyageBudget;
   level: LevelScript;
@@ -126,7 +127,7 @@ describe('newVoyage', () => {
       ],
     });
     const vstate = newVoyage(level, 999);
-    expect([...vstate.caged].sort((a, b) => a - b)).toEqual([20, 21, 22]);
+    expect([...vstate.caged.keys()].sort((a, b) => a - b)).toEqual([20, 21, 22]);
     expect(vstate.status).toBe('playing');
     expect(vstate.objectives).toHaveLength(2);
     const freeCaged = vstate.objectives.find((o) => o.objective.type === 'freeCaged');
@@ -152,7 +153,7 @@ describe('applyVoyageResolution', () => {
     const vstate = voyageOf({
       board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 20 }],
       budget: { kind: 'moves', remaining: 5 },
       level: parsedVoyage(MOVES),
@@ -170,7 +171,7 @@ describe('applyVoyageResolution', () => {
     const vstate = voyageOf({
       board,
       config: CONFIG_4X4,
-      caged: new Set([1]), // a caged cell inside the cleared chain
+      caged: new Map([[1, 1]]), // a caged cell inside the cleared chain
       objectives: [{ type: 'clearColor', color: 0, count: 3 }, { type: 'freeCaged' }],
       budget: { kind: 'moves', remaining: 1 }, // spends to 0 on this commit
       level: parsedVoyage(MOVES),
@@ -183,12 +184,53 @@ describe('applyVoyageResolution', () => {
     expect(out.status).toBe('won');
   });
 
+  it('chips a 2-layer cage first (dot survives), pops it on the second clear (freeCaged wins)', () => {
+    const board = parseBoard(ART).board;
+    const vstate = voyageOf({
+      board,
+      config: CONFIG_4X4,
+      caged: new Map([[1, 2]]), // a 2-layer cage inside the RRR chain
+      objectives: [{ type: 'freeCaged' }],
+      budget: { kind: 'moves', remaining: 5 },
+      level: parsedVoyage(MOVES),
+    });
+
+    // First clear: chain [0,1,2] with index 1 protected → 0 and 2 clear, 1 is a
+    // protectedHit that chips its cage 2 → 1 and keeps its dot on the board.
+    const chip = resolveChain(vstate.game, [0, 1, 2], protectedOf(vstate.caged));
+    if (chip === null) {
+      throw new Error('chip chain must resolve');
+    }
+    const afterChip = applyVoyageResolution(vstate, chip);
+    expect(afterChip.caged.get(1)).toBe(1); // 2 → 1, still caged
+    expect(afterChip.game.board[1]).toBe(0); // the caged dot survives in place
+    expect(afterChip.objectives.find((o) => o.objective.type === 'freeCaged')?.done).toBe(false);
+    expect(afterChip.status).toBe('playing');
+
+    // Second clear pops the now-1-layer cage (a 1-layer cage is never protected):
+    // a synthetic resolution that clears index 1. Its last layer gone, freeCaged
+    // completes → win.
+    const pop: Resolution = {
+      kind: 'plain',
+      color: 0,
+      cleared: [{ index: 1, color: 0, reason: 'chain' }],
+      falls: [],
+      spawns: [],
+      scoreDelta: 10,
+      board: afterChip.game.board,
+      rngState: afterChip.game.rngState,
+    };
+    const afterPop = applyVoyageResolution(afterChip, pop);
+    expect(afterPop.caged.size).toBe(0);
+    expect(afterPop.status).toBe('won');
+  });
+
   it('loses when the last move is spent with objectives still unmet', () => {
     const board = parseBoard(ART).board;
     const vstate = voyageOf({
       board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 20 }], // unmet after clearing 3
       budget: { kind: 'moves', remaining: 1 },
       level: parsedVoyage(MOVES),
@@ -205,7 +247,7 @@ describe('applyVoyageResolution', () => {
     const vstate = voyageOf({
       board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 20 }],
       budget: { kind: 'timed', remainingMs: 10000 },
       level: parsedVoyage(TIMED), // clearBonusMs 500
@@ -222,7 +264,7 @@ describe('applyVoyageResolution', () => {
     const vstate = voyageOf({
       board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 20 }],
       budget: { kind: 'mistakes', remaining: 3 },
       level: parsedVoyage(MISTAKES),
@@ -239,7 +281,7 @@ describe('applyVoyageResolution', () => {
     const lost = voyageOf({
       board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 20 }],
       budget: { kind: 'moves', remaining: 1 },
       level: parsedVoyage(MOVES),
@@ -255,7 +297,7 @@ describe('tickVoyage', () => {
     voyageOf({
       board: parseBoard('RRRB/BGBG/GBGB/BGBG').board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       budget: { kind: 'timed', remainingMs: 5000 },
       level: parsedVoyage(TIMED),
@@ -279,7 +321,7 @@ describe('tickVoyage', () => {
     const moves = voyageOf({
       board: parseBoard('RRRB/BGBG/GBGB/BGBG').board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       budget: { kind: 'moves', remaining: 10 },
       level: parsedVoyage(MOVES),
@@ -298,7 +340,7 @@ describe('registerVoyageMistake', () => {
     const moves = voyageOf({
       board: parseBoard('RRRB/BGBG/GBGB/BGBG').board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       budget: { kind: 'moves', remaining: 10 },
       level: parsedVoyage(MOVES),
@@ -310,7 +352,7 @@ describe('registerVoyageMistake', () => {
     const timed = voyageOf({
       board: parseBoard('RRRB/BGBG/GBGB/BGBG').board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       budget: { kind: 'timed', remainingMs: 5000 },
       level: parsedVoyage(TIMED), // mistakePenaltyMs 2000
@@ -322,7 +364,7 @@ describe('registerVoyageMistake', () => {
     const timed = voyageOf({
       board: parseBoard('RRRB/BGBG/GBGB/BGBG').board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       budget: { kind: 'timed', remainingMs: 1000 },
       level: parsedVoyage(TIMED),
@@ -336,7 +378,7 @@ describe('registerVoyageMistake', () => {
     const mistakes = voyageOf({
       board: parseBoard('RRRB/BGBG/GBGB/BGBG').board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       budget: { kind: 'mistakes', remaining: 1 },
       level: parsedVoyage(MISTAKES),
@@ -350,7 +392,7 @@ describe('registerVoyageMistake', () => {
     const mistakes = voyageOf({
       board: parseBoard('RRRB/BGBG/GBGB/BGBG').board,
       config: CONFIG_4X4,
-      caged: new Set<number>(),
+      caged: new Map<number, number>(),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       budget: { kind: 'mistakes', remaining: 1 },
       level: parsedVoyage(MISTAKES),
@@ -368,7 +410,7 @@ describe('settleVoyage', () => {
     const vstate = voyageOf({
       board: parsed.board,
       config: CONFIG_4X4,
-      caged: new Set([5]),
+      caged: new Map([[5, 1]]),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       budget: { kind: 'moves', remaining: 10 },
       level: parsedVoyage(MOVES),
@@ -386,7 +428,7 @@ describe('settleVoyage', () => {
     const vstate = voyageOf({
       board: parseBoard('RRRB/BGBG/GBGB/BGBG').board,
       config: CONFIG_4X4,
-      caged: new Set([5]),
+      caged: new Map([[5, 1]]),
       objectives: [{ type: 'clearColor', color: 0, count: 5 }],
       budget: { kind: 'moves', remaining: 10 },
       level: parsedVoyage(MOVES),

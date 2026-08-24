@@ -152,6 +152,15 @@ export const EPISODE_1_LAST = 10;
 /** Bosses land on every BOSS_EVERY-th level. */
 export const BOSS_EVERY = 10;
 
+/**
+ * How many hits (same-colour clears including the caged dot) each difficulty
+ * band needs to break a cage. The single source of truth for cage depth:
+ * `teach` = today's instant-pop intro (1 clear), `mid` = one chip then pop,
+ * `boss` = the Caged Core's harder shell. Consumed by `cageLayersForIndex`;
+ * curated levels may author a value directly (see episode-1.ts).
+ */
+export const CAGE_LAYERS = { teach: 1, mid: 2, boss: 3 } as const;
+
 /** The Voyage board footprint (base 6×6, matching the shipped Endless board). */
 export const VOYAGE_ROWS = 6;
 export const VOYAGE_COLS = 6;
@@ -193,6 +202,32 @@ export const SOLVER_TIMED_FLOOR_MS = 15000;
 /** The episode a level index belongs to (1-based, one episode per boss block). */
 export function episodeOf(index: number): number {
   return Math.ceil(index / BOSS_EVERY);
+}
+
+/** True for a boss index (`index % BOSS_EVERY === 0`). The ladder's boss test. */
+export function isBossIndex(index: number): boolean {
+  return index % BOSS_EVERY === 0;
+}
+
+/**
+ * The layer band for any cage on a given level index — the SINGLE authority every
+ * band decision (generator, boss pool, curated ladder) routes through, so no
+ * module re-derives bands inline. Precedence is boss-FIRST: level 10 is both a
+ * boss index and inside Episode 1, so an episode-first order would misclassify the
+ * Caged Core boss as a 1-layer teach cage. A curated level may still author a
+ * per-cage override on top of this (the seeded 2-layer teaching cage); the band
+ * function stays one clean rule and the accessor reads `obstacle.layers ?? 1`.
+ */
+export function cageLayersForIndex(index: number): number {
+  if (isBossIndex(index)) {
+    return CAGE_LAYERS.boss;
+  }
+  // `episodeOf(index) === 1` is exactly the Episode-1 range (1..EPISODE_1_LAST)
+  // without importing `isEpisodeOne` from episode-1.ts, which would form a cycle.
+  if (episodeOf(index) === 1) {
+    return CAGE_LAYERS.teach;
+  }
+  return CAGE_LAYERS.mid;
 }
 
 /**

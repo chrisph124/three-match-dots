@@ -8,6 +8,7 @@ import { bottomAnchoredCages } from './cage-layout';
 import { budget, spend } from './difficulty-budget';
 import { curve } from './difficulty-curve';
 import {
+  CAGE_LAYERS,
   EPISODE_1_LAST,
   PROFILES,
   VOYAGE_COLS,
@@ -91,7 +92,9 @@ function findMultiColorSeed(config: GameConfig, cells: readonly number[], base: 
 
 /** "The Caged Core" — the curated level-10 boss (8 bottom cages, ≥2 colours). */
 export function cagedCore(index: number, paletteSize: number): LevelScript {
-  const cages = bottomAnchoredCages(CAGED_CORE_CAGES, VOYAGE_COLS, VOYAGE_ROWS);
+  // The boss shell is the deepest band — every core cage needs `boss` clears.
+  const bossLayers = Array.from({ length: CAGED_CORE_CAGES }, () => CAGE_LAYERS.boss);
+  const cages = bottomAnchoredCages(CAGED_CORE_CAGES, bossLayers, VOYAGE_COLS, VOYAGE_ROWS);
   const cageCells = cages.map((cage) => cage.cell.row * VOYAGE_COLS + cage.cell.col);
   const config = boardConfig(CAGED_CORE_COLORS, DEFAULT_CONFIG.minChain);
   const seed = findMultiColorSeed(config, cageCells, seedForIndex(index));

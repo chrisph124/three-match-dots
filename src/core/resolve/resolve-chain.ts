@@ -1,5 +1,5 @@
 import { areAdjacent } from '../hot/adjacency';
-import type { Board, Chain, GameState, Resolution } from '../types';
+import type { Board, CellIndex, Chain, GameState, Resolution } from '../types';
 import { EMPTY } from '../types';
 import { classifyChain } from './classify-chain';
 import { collectCleared } from './collect-cleared';
@@ -32,11 +32,30 @@ function isCommittable(board: Board, chain: Chain, cols: number, minChain: numbe
 }
 
 /**
+ * A shared, never-mutated empty set so the default 2-arg path allocates nothing
+ * and `protectedCells.size` is always safe to read (red-team F7: a bare optional
+ * would null-deref for every current 2-arg caller).
+ */
+const EMPTY_PROTECTED: ReadonlySet<CellIndex> = new Set();
+
+/**
  * classify -> collect -> gravity -> refill -> score.
  * Returns null when the chain cannot be committed; the input layer treats
  * null as a cancel. Nothing here throws.
+ *
+ * `protectedCells` is a generic, mechanic-agnostic seam: any collected cell in
+ * the set is linked and counted toward the chain (validation, classification,
+ * and colour all run on the FULL chain) yet survives removal — it does not
+ * score, is not punched out, and is echoed back on `Resolution.protectedHits`.
+ * The layered-cage overlay and the solver pass their own "keep this cell" set;
+ * the core never learns why. Omitted/empty ⇒ byte-identical to the classic
+ * two-arg resolve (no partition, no `protectedHits` key).
  */
-export function resolveChain(state: GameState, chain: Chain): Resolution | null {
+export function resolveChain(
+  state: GameState,
+  chain: Chain,
+  protectedCells: ReadonlySet<CellIndex> = EMPTY_PROTECTED,
+): Resolution | null {
   const { board, config } = state;
   const { rows, cols } = config;
 
@@ -46,7 +65,14 @@ export function resolveChain(state: GameState, chain: Chain): Resolution | null 
 
   const kind = classifyChain(chain, cols, config.lineLength);
   const color = board[chain[0]];
-  const cleared = collectCleared(board, chain, kind);
+  // Classification ran on the full chain above; only the *removed* set is split.
+  // Protecting a cell that was never collected is a no-op, so the overlay can
+  // pass its protected set unconditionally without predicting collect/classify.
+  const collected = collectCleared(board, chain, kind);
+  const cleared =
+    protectedCells.size === 0 ? collected : collected.filter((c) => !protectedCells.has(c.index));
+  const protectedHits =
+    protectedCells.size === 0 ? undefined : collected.filter((c) => protectedCells.has(c.index));
   const settled = applyGravity(board, cleared, rows, cols);
 
   // Combo heat. Off unless the config sets heatCap > 0 (only ENDLESS_CONFIG does),
@@ -91,5 +117,6 @@ export function resolveChain(state: GameState, chain: Chain): Resolution | null 
     board: filled.board,
     rngState: filled.rngState,
     ...(heatEnabled ? { heat: nextHeat, doubleSweep } : {}),
+    ...(protectedHits && protectedHits.length ? { protectedHits } : {}),
   };
 }

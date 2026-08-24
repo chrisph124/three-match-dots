@@ -23,7 +23,7 @@
   ],
   "obstacles": [
     { "type": "cagedDot", "cell": { "col": 2, "row": 3 } },
-    { "type": "cagedDot", "cell": { "col": 3, "row": 3 } },
+    { "type": "cagedDot", "cell": { "col": 3, "row": 3 }, "layers": 2 },
     { "type": "cagedDot", "cell": { "col": 4, "row": 3 } }
   ],
   "rewards": {
