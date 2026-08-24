@@ -24,6 +24,9 @@ export default function TitleScreen() {
       <Link href="/journey" style={styles.link}>
         Journey
       </Link>
+      <Link href="/voyage" style={styles.link}>
+        Voyage
+      </Link>
       <Link href="/settings" style={styles.link}>
         Settings
       </Link>

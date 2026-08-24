@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { constraintOf, levelToConfig, type LevelScript } from '../core/level/level-script';
 import { resolveChain } from '../core/resolve/resolve-chain';
-import type { Board, Resolution } from '../core/types';
+import type { Board, ClearedCell, Resolution } from '../core/types';
 import {
   applyVoyageResolution,
   newVoyage,
@@ -32,6 +32,19 @@ type Options = {
   readonly layout: BoardLayout;
   readonly anim: BoardAnimation;
   readonly chainState: ChainState;
+};
+
+/**
+ * A committed clear, surfaced so the render layer can fire matching juice
+ * (shards per pop, a ripple on a colour-sweep). `seq` increments per clear so
+ * an identical back-to-back clear still re-triggers the effect; `sweep` is true
+ * for a 2×2-loop or ≥line clear (`kind !== 'plain'`). Read-only signal — the
+ * effects never feed back into the reducer.
+ */
+export type VoyageClearEvent = {
+  readonly seq: number;
+  readonly cleared: readonly ClearedCell[];
+  readonly sweep: boolean;
 };
 
 // Plain module-level writers for the Reanimated shared values on `chainState`.
@@ -83,6 +96,12 @@ export function useVoyageState({ level, layout, anim, chainState }: Options) {
 
   const [vstate, setVoyage] = useState<VoyageState>(() => newVoyage(level, Date.now() >>> 0));
   const latest = useRef(vstate);
+
+  // A per-clear pulse the render layer watches to fire shards/ripple juice. It's
+  // a pure output of `commit` (never read back by the reducer), so it lives as
+  // display state beside `vstate` rather than inside the core machine.
+  const clearSeq = useRef(0);
+  const [clearEvent, setClearEvent] = useState<VoyageClearEvent | null>(null);
 
   // Updates React state and the gesture callback's snapshot together. Board
   // mirror is written separately (only when the board actually changes), so
@@ -173,6 +192,15 @@ export function useVoyageState({ level, layout, anim, chainState }: Options) {
         }
         return;
       }
+      // Surface the clear for the render layer's juice before the pop plays, so
+      // shards burst in time with the dots shrinking. A sweep (loop/line) also
+      // gets a ripple — see `voyage-juice.ts`.
+      clearSeq.current += 1;
+      setClearEvent({
+        seq: clearSeq.current,
+        cleared: resolution.cleared,
+        sweep: resolution.kind !== 'plain',
+      });
       playClear(anim, resolution.cleared, () => applyAndDrop(resolution));
     },
     [advance, anim, applyAndDrop, chainState],
@@ -225,9 +253,24 @@ export function useVoyageState({ level, layout, anim, chainState }: Options) {
       board: vstate.game.board,
       budget: vstate.budget,
       objectives: vstate.objectives,
+      // Live caged-cell set — the boss HP bar reads it (with the board) to drain
+      // each colour segment as its cages are freed, off the same state the
+      // reducer owns (no parallel counter).
+      caged: vstate.caged,
       status: vstate.status,
+      // The last committed clear (or null) — the render layer fires shards/ripple
+      // off it; see VoyageClearEvent.
+      event: clearEvent,
       commit,
     }),
-    [vstate.game.board, vstate.budget, vstate.objectives, vstate.status, commit],
+    [
+      vstate.game.board,
+      vstate.budget,
+      vstate.objectives,
+      vstate.caged,
+      vstate.status,
+      clearEvent,
+      commit,
+    ],
   );
 }

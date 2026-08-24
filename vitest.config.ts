@@ -11,6 +11,8 @@ const TESTABLE_SPECS = [
   'src/render/geometry.test.ts',
   'src/render/move-offsets.test.ts',
   'src/render/contrast.test.ts',
+  'src/render/voyage/contrast-tokens.test.ts',
+  'src/meta/voyage-progress-codec.test.ts',
 ];
 
 // Sources measured for coverage: the modules under test, not the *.test.ts
@@ -23,6 +25,11 @@ const COVERAGE_INCLUDE = [
   'src/core/**/*.ts',
   'src/render/geometry.ts',
   'src/render/move-offsets.ts',
+  // Pure Voyage modules (RN-free): the shadow-box contrast tokens and the
+  // per-episode progress codec. Their RN siblings (board-panel, storage) stay
+  // out — same discipline as geometry.ts vs board-canvas.tsx.
+  'src/render/voyage/contrast-tokens.ts',
+  'src/meta/voyage-progress-codec.ts',
 ];
 
 export default defineConfig({
