@@ -190,8 +190,17 @@ const METRIC_OF_CONSTRAINT = {
   mistakes: 'mistakes',
 } as const;
 
-/** Reads which metric a parsed `rewards.stars` object carries, by key presence. */
-function starsMetric(stars: Record<string, unknown>): 'seconds' | 'moves' | 'mistakes' | 'unknown' {
+/**
+ * Reads which metric a `rewards.stars` object carries, by key presence. The parse
+ * pipeline only ever feeds it a schema-validated (union) shape, so the `'unknown'`
+ * default is defensive — it keeps an unrecognised shape from silently matching a
+ * real metric. Exported so the classifier (every arm, the default included) is
+ * unit-testable directly, not only incidentally through whichever levels a
+ * calibration ladder happens to validate.
+ */
+export function starsMetric(
+  stars: Record<string, unknown>,
+): 'seconds' | 'moves' | 'mistakes' | 'unknown' {
   if ('twoStarSecondsLeft' in stars) return 'seconds';
   if ('twoStarMovesLeft' in stars) return 'moves';
   if ('twoStarMistakesLeft' in stars) return 'mistakes';
