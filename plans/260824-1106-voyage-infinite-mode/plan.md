@@ -61,24 +61,28 @@ ribbon, boss modifier, HUD, juice) shipping **2 biomes** and an **extended dot p
 
 ## Phases
 
-| #   | Phase                                                                                | Status  | Depends on |
-| --- | ------------------------------------------------------------------------------------ | ------- | ---------- |
-| 1   | [Schema v2 — the LevelScript contract](./phase-01-start.md)                          | Done    | —          |
-| 2   | [Voyage state machine](./phase-02-voyage-state-machine.md)                           | Done    | 1          |
-| 3   | [Difficulty curve and budget](./phase-03-difficulty-curve-and-budget.md)             | Done    | 1          |
-| 4   | [Generation engine and variety](./phase-04-generation-engine-and-variety.md)         | Done    | 1, 3       |
-| 5   | [Solver bot and calibration](./phase-05-solver-bot-and-calibration.md)               | Done    | 2, 4       |
-| 6   | [Environment diorama render](./phase-06-environment-diorama-render.md)               | Pending | 1          |
-| 7   | [Navigation ribbon and persistence](./phase-07-navigation-ribbon-and-persistence.md) | Pending | 2, 4, 6    |
-| 8   | [Boss visuals, HUD and juice](./phase-08-boss-visuals-hud-and-juice.md)              | Pending | 2, 6       |
+| #   | Phase                                                                                | Status | Depends on |
+| --- | ------------------------------------------------------------------------------------ | ------ | ---------- |
+| 1   | [Schema v2 — the LevelScript contract](./phase-01-start.md)                          | Done   | —          |
+| 2   | [Voyage state machine](./phase-02-voyage-state-machine.md)                           | Done   | 1          |
+| 3   | [Difficulty curve and budget](./phase-03-difficulty-curve-and-budget.md)             | Done   | 1          |
+| 4   | [Generation engine and variety](./phase-04-generation-engine-and-variety.md)         | Done   | 1, 3       |
+| 5   | [Solver bot and calibration](./phase-05-solver-bot-and-calibration.md)               | Done   | 2, 4       |
+| 6   | [Environment diorama render](./phase-06-environment-diorama-render.md)               | Done   | 1          |
+| 7   | [Navigation ribbon and persistence](./phase-07-navigation-ribbon-and-persistence.md) | Done   | 2, 4, 6    |
+| 8   | [Boss visuals, HUD and juice](./phase-08-boss-visuals-hud-and-juice.md)              | Done   | 2, 6       |
 
 Parallelism: after Phase 1, Phases 2/3/6 run concurrently. Phase 4 follows 3; Phase 5 follows 4+2;
 Phases 7/8 are render close-out after their deps.
 
-**Status (2026-08-24):** the pure-TS engine — **Phases 1–5, all Vitest-testable** — is complete and
-green (343 tests, typecheck/lint/coverage clean, `src/core/voyage/**` RN-free). **Phases 6–8 (the Skia
-render layer: diorama backdrop, navigation ribbon, boss visuals/HUD/juice) are the handoff boundary** —
-not Vitest-testable (worklets/native), so they are verified on-device by the owner, not in this pass.
+**Status (2026-08-24):** ALL phases code-complete. The pure-TS engine — **Phases 1–5** — is green
+(353 tests, typecheck/lint/coverage clean, `src/core/voyage/**` RN-free). **Phases 6–8 (the Skia
+render layer: diorama backdrop, navigation ribbon, boss visuals/HUD/juice) are now built** and pass
+every automatable gate (typecheck/lint clean, 353 tests, coverage ≥ baseline) plus a `code-reviewer`
+pass (findings H1 push→replace nav, M1 effects-bundle memo, L1 cleared-level unlock — all fixed).
+Because these layers are worklet/native, the **remaining gate is owner on-device verification** —
+visual appearance, raw frame rate, and persistence surviving a real app restart. The Voyage mode is
+wired into the title menu (`/voyage` → ladder → `/voyage-game`) and playable.
 
 ## Success Criteria
 

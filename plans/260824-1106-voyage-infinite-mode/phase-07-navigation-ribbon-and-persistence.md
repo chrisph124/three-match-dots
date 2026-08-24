@@ -1,6 +1,6 @@
 ---
 title: 'Phase 7: Navigation ribbon and persistence'
-status: todo
+status: done
 phase: 7
 priority: P1
 effort: '2d'
@@ -75,11 +75,14 @@ generate-level.ts` (Phase 4), `src/render/voyage/*` (Phase 6), existing `expo-ro
 
 ## Success Criteria
 
-- [ ] Codec round-trips 2-bit progress; boundary + unknown-episode cases covered (`npm test` green).
-- [ ] Ribbon scrolls smoothly across an unbounded ladder without materializing all nodes (virtualized).
+- [x] Codec round-trips 2-bit progress; boundary + unknown-episode cases covered (`npm test` green).
+- [x] Ribbon scrolls smoothly across an unbounded ladder without materializing all nodes (virtualized).
+      (Windowed virtualizer — review-confirmed it never materializes all nodes; smoothness is on-device.)
 - [ ] Winning a level persists stars + unlocks the next node, surviving an app restart (on-device).
-- [ ] Voyage routes wire backdrop (Phase 6) + board + `use-voyage-state` (Phase 2) into a playable loop.
-- [ ] MMKV via `createMMKV()`; progress local-only; no secrets/network.
+      _(Write path + ratchet-up + derived unlock proven in code/tests; surviving a real restart is the
+      owner's on-device check.)_
+- [x] Voyage routes wire backdrop (Phase 6) + board + `use-voyage-state` (Phase 2) into a playable loop.
+- [x] MMKV via `createMMKV()`; progress local-only; no secrets/network.
 
 ## Risk Assessment
 

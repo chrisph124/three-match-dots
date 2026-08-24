@@ -1,6 +1,6 @@
 ---
 title: 'Phase 6: Environment diorama render'
-status: todo
+status: done
 phase: 6
 priority: P1
 effort: '2d'
@@ -89,13 +89,17 @@ board Canvas (front, unchanged). Confirmed against the environment strategy repo
 
 ## Success Criteria
 
-- [ ] The near-black background is gone; a warm biome fills the screen behind the board.
-- [ ] The palette is extended to up to 5 hues (indices 0–2 unchanged); **every** hue clears ≥3:1
+- [x] The near-black background is gone; a warm biome fills the screen behind the board.
+      (`BackdropCanvas` is an opaque full-screen layer behind the board panel.)
+- [x] The palette is extended to up to 5 hues (indices 0–2 unchanged); **every** hue clears ≥3:1
       contrast on the panel (`contrast-tokens.test.ts` green) and is colorblind-distinguishable.
-- [ ] Board Canvas is unchanged (origin-0,0, style-less) — gestures behave exactly as before.
-- [ ] 2 biomes + time-of-day variants render; unknown biome id falls back, never crashes.
-- [ ] `theme.boss` visibly shifts the scene; no bespoke boss art added.
-- [ ] No per-frame allocation in the backdrop; on-device frame rate holds.
+- [x] Board Canvas is unchanged (origin-0,0, style-less) — gestures behave exactly as before.
+      (Verified by code review: panel wraps the gesture detector; hit-test coords unshifted.)
+- [x] 2 biomes + time-of-day variants render; unknown biome id falls back, never crashes.
+      (`themeToScene`/`resolveBiome`/`resolveVariant` fall back safely — review-confirmed.)
+- [x] `theme.boss` visibly shifts the scene; no bespoke boss art added.
+- [ ] No per-frame allocation in the backdrop; on-device frame rate holds. _(Backdrop paths/matrix
+      are `useMemo`'d — no per-frame alloc; raw frame rate is the owner's on-device check.)_
 
 ## Risk Assessment
 

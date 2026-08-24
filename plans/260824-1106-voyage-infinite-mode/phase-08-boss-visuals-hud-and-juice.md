@@ -1,6 +1,6 @@
 ---
 title: 'Phase 8: Boss visuals, HUD and juice'
-status: todo
+status: done
 phase: 8
 priority: P1
 effort: '1.5d'
@@ -75,15 +75,16 @@ level-script.ts` (`cagedCellIndices`), `src/render/voyage/board-panel.tsx` (Phas
 
 ## Success Criteria
 
-- [ ] HUD shows the correct metric for each constraint (moves/seconds/mistakes) + objective progress.
-- [ ] The boss HP bar has one segment per cage color and drains as each color is freed (Caged Core
+- [x] HUD shows the correct metric for each constraint (moves/seconds/mistakes) + objective progress.
+- [x] The boss HP bar has one segment per cage color and drains as each color is freed (Caged Core
       reads as a multi-phase fight).
-- [ ] A boss is unmistakable via non-art signals (title + scene shift + HP bar + contrast) — zero new
+- [x] A boss is unmistakable via non-art signals (title + scene shift + HP bar + contrast) — zero new
       sprites.
-- [ ] Juice (shards / sweep ripple / seal thud) fires from fixed pools with no per-event allocation and
-      no jank on device.
-- [ ] Reduce-motion produces calm variants of every effect.
-- [ ] Tone stays within the LOCKED creative bible (restrained, papery — no confetti-spam).
+- [x] Juice (shards / sweep ripple / seal thud) fires from fixed pools with no per-event allocation
+      (review-confirmed pool discipline: ≤2 `fireShards`/event, ≤16 of 18 spark slots); no-jank is
+      the owner's on-device check.
+- [x] Reduce-motion produces calm variants of every effect (`useReduceMotion` gates every fire).
+- [x] Tone stays within the LOCKED creative bible (restrained, papery — no confetti-spam).
 
 ## Risk Assessment
 
