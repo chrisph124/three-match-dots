@@ -39,6 +39,19 @@ describe('hasLegalMove', () => {
     expect(check('RRGR/RRGR/GGRR/RGRG')).toBe(true);
   });
 
+  // A 4-cell same-colour STAR: centre R at (1,1) with three mutually
+  // non-adjacent arms — N (0,1), SW (2,0), SE (2,2). The component has 4 cells
+  // but its longest simple chain is only 3, so no legal 4-chain exists. A
+  // size-only check (component size >= minChain) wrongly reports a move here
+  // and soft-locks the player at minChain 4; the path search must not.
+  it('is false on a 4-cell star that has no 4-chain (minChain 4)', () => {
+    expect(check('GRB/BRG/RBR', 4)).toBe(false);
+  });
+
+  it('still finds the star as a legal 3-chain (minChain 3)', () => {
+    expect(check('GRB/BRG/RBR', 3)).toBe(true);
+  });
+
   it('finds diagonal adjacency at width 2', () => {
     // At width 2, cells 1 and 2 (indices for (0,1) and (1,0)) are genuine
     // diagonal neighbours and have raw-index difference 1. This test confirms

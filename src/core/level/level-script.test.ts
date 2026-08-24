@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../config';
-import { cagedCellIndices, levelToConfig, parseLevelScript } from './level-script';
+import {
+  cagedCellIndices,
+  cagedCells,
+  constraintOf,
+  levelToConfig,
+  parseLevelScript,
+  starsMetric,
+} from './level-script';
 
 const PALETTE = 6;
 
@@ -113,6 +120,52 @@ describe('cagedCellIndices', () => {
   });
 });
 
+describe('cagedCells (layer source of truth)', () => {
+  it('returns row-major index + layers, defaulting layers to 1 when omitted', () => {
+    const level = parseLevelScript(valid(), PALETTE);
+    expect(cagedCells(level)).toEqual([
+      { index: 20, layers: 1 },
+      { index: 21, layers: 1 },
+      { index: 22, layers: 1 },
+    ]);
+  });
+
+  it('carries an authored layers count through', () => {
+    const input = valid();
+    (input.obstacles as Record<string, unknown>[])[1].layers = 2;
+    const level = parseLevelScript(input, PALETTE);
+    expect(cagedCells(level).map((c) => c.layers)).toEqual([1, 2, 1]);
+  });
+
+  it('is the single enumeration cagedCellIndices reads from', () => {
+    const level = parseLevelScript(valid(), PALETTE);
+    expect(cagedCellIndices(level)).toEqual(cagedCells(level).map((c) => c.index));
+  });
+});
+
+describe('obstacle layers field', () => {
+  it('parses an obstacle with an explicit layers count', () => {
+    const input = valid();
+    (input.obstacles as Record<string, unknown>[])[0].layers = 3;
+    expect(() => parseLevelScript(input, PALETTE)).not.toThrow();
+  });
+
+  it('parses an obstacle with no layers field (no schemaVersion bump)', () => {
+    const level = parseLevelScript(valid(), PALETTE);
+    expect(level.schemaVersion).toBe(1);
+    expect('layers' in level.obstacles[0]).toBe(false);
+  });
+
+  it('rejects layers below 1 or above 5', () => {
+    const tooLow = valid();
+    (tooLow.obstacles as Record<string, unknown>[])[0].layers = 0;
+    expect(() => parseLevelScript(tooLow, PALETTE)).toThrow();
+    const tooHigh = valid();
+    (tooHigh.obstacles as Record<string, unknown>[])[0].layers = 6;
+    expect(() => parseLevelScript(tooHigh, PALETTE)).toThrow();
+  });
+});
+
 describe('parseLevelScript — fail-fast rejections', () => {
   // Returns the parse as a thunk (never called here) so each test asserts
   // `.toThrow()` in its own body — the assertion stays visible to the linter
@@ -126,9 +179,10 @@ describe('parseLevelScript — fail-fast rejections', () => {
     };
 
   it('rejects an unknown schemaVersion', () => {
+    // 1 and 2 are the only known versions; 3 is not understood.
     expect(
       parsingMutated((i) => {
-        i.schemaVersion = 2;
+        i.schemaVersion = 3;
       }),
     ).toThrow();
   });
@@ -246,5 +300,200 @@ describe('parseLevelScript — fail-fast rejections', () => {
         (i.timer as Record<string, unknown>).startMs = 0;
       }),
     ).toThrow();
+  });
+});
+
+/** A fresh, fully-valid schemaVersion-2 voyage level each call. */
+function validVoyage(): Record<string, unknown> {
+  return structuredClone({
+    schemaVersion: 2,
+    id: 'voyage-010-caged-core',
+    order: 10,
+    board: { cols: 6, rows: 6, colors: 3, minChain: 3 },
+    seed: 424242,
+    mode: 'voyage',
+    constraint: { type: 'moves', budget: 25 },
+    voyage: { index: 10, episode: 1, isBoss: true },
+    theme: {
+      biome: 'harbor',
+      variant: 'dusk',
+      particle: 'embers',
+      trim: 'brass',
+      parallaxSeed: 7,
+      boss: true,
+    },
+    objectives: [{ type: 'freeCaged' }],
+    obstacles: [
+      { type: 'cagedDot', cell: { col: 2, row: 5 } },
+      { type: 'cagedDot', cell: { col: 3, row: 5 } },
+    ],
+    rewards: { stars: { twoStarMovesLeft: 5, threeStarMovesLeft: 10 } },
+  });
+}
+
+describe('parseLevelScript — v2 voyage', () => {
+  const parsingMutated =
+    (mutate: (input: Record<string, unknown>) => void, palette = PALETTE) =>
+    () => {
+      const input = validVoyage();
+      mutate(input);
+      return parseLevelScript(input, palette);
+    };
+
+  it('parses a valid voyage level (no chapter/city required)', () => {
+    const level = parseLevelScript(validVoyage(), PALETTE);
+    expect(level.mode).toBe('voyage');
+    expect(level.voyage?.index).toBe(10);
+    expect(level.voyage?.isBoss).toBe(true);
+    expect(level.chapter).toBeUndefined();
+    expect(level.city).toBeUndefined();
+    expect(level.theme?.biome).toBe('harbor');
+  });
+
+  it('accepts a v1-shaped journey level under schemaVersion 2 (v1 fields carry forward)', () => {
+    const input = valid();
+    input.schemaVersion = 2;
+    expect(() => parseLevelScript(input, PALETTE)).not.toThrow();
+  });
+
+  it('accepts a v1 endless level (no timer, no objectives required)', () => {
+    const input = valid();
+    input.mode = 'endless';
+    delete input.timer;
+    input.objectives = [];
+    // endless carries no time-metric constraint, so drop the seconds rewards too.
+    delete input.rewards;
+    expect(() => parseLevelScript(input, PALETTE)).not.toThrow();
+  });
+
+  it('rejects a voyage level at schemaVersion 1', () => {
+    expect(
+      parsingMutated((i) => {
+        i.schemaVersion = 1;
+      }),
+    ).toThrow();
+  });
+
+  it('rejects a voyage level missing its constraint', () => {
+    expect(
+      parsingMutated((i) => {
+        delete i.constraint;
+      }),
+    ).toThrow();
+  });
+
+  it('rejects a voyage level that also carries a timer', () => {
+    expect(
+      parsingMutated((i) => {
+        i.timer = { startMs: 60000, mistakePenaltyMs: 2000, clearBonusMs: 0 };
+      }),
+    ).toThrow();
+  });
+
+  it('rejects a voyage level missing its voyage envelope', () => {
+    expect(
+      parsingMutated((i) => {
+        delete i.voyage;
+      }),
+    ).toThrow();
+  });
+
+  it('rejects a voyage level with an empty objectives list', () => {
+    expect(
+      parsingMutated((i) => {
+        i.objectives = [];
+        i.obstacles = [];
+      }),
+    ).toThrow();
+  });
+
+  it('rejects a non-positive moves budget', () => {
+    expect(
+      parsingMutated((i) => {
+        i.constraint = { type: 'moves', budget: 0 };
+      }),
+    ).toThrow();
+  });
+
+  it('rejects rewards whose metric mismatches the constraint (seconds stars on a moves level)', () => {
+    expect(
+      parsingMutated((i) => {
+        i.rewards = { stars: { twoStarSecondsLeft: 5, threeStarSecondsLeft: 10 } };
+      }),
+    ).toThrow();
+  });
+
+  it('still enforces board-legality (colors * minChain <= rows * cols) for voyage', () => {
+    expect(
+      parsingMutated((i) => {
+        i.board = { cols: 3, rows: 3, colors: 4, minChain: 3 }; // 12 > 9
+        i.objectives = [{ type: 'freeCaged' }];
+        i.obstacles = [{ type: 'cagedDot', cell: { col: 0, row: 2 } }];
+      }),
+    ).toThrow();
+  });
+
+  it('defaults a timed constraint clearBonusMs to 0 when omitted', () => {
+    const level = parseLevelScript(
+      {
+        ...validVoyage(),
+        constraint: { type: 'timed', startMs: 45000, mistakePenaltyMs: 1500 },
+        rewards: { stars: { twoStarSecondsLeft: 10, threeStarSecondsLeft: 20 } },
+      },
+      PALETTE,
+    );
+    const constraint = constraintOf(level);
+    expect(constraint).toEqual({
+      type: 'timed',
+      startMs: 45000,
+      mistakePenaltyMs: 1500,
+      clearBonusMs: 0,
+    });
+  });
+});
+
+describe('constraintOf', () => {
+  it('returns a voyage level constraint directly', () => {
+    expect(constraintOf(parseLevelScript(validVoyage(), PALETTE))).toEqual({
+      type: 'moves',
+      budget: 25,
+    });
+  });
+
+  it('maps a journey timer into an equivalent timed constraint', () => {
+    const level = parseLevelScript(valid(), PALETTE);
+    expect(constraintOf(level)).toEqual({
+      type: 'timed',
+      startMs: 60000,
+      mistakePenaltyMs: 2000,
+      clearBonusMs: 0,
+    });
+  });
+
+  it('throws for a level that carries neither a constraint nor a timer', () => {
+    // An endless level has no fail-state, so it parses with neither and must
+    // never reach the Voyage state machine's single-constraint entry point.
+    const input = valid();
+    input.mode = 'endless';
+    delete input.timer;
+    input.objectives = [{ type: 'clearColor', color: 0, count: 20 }];
+    input.obstacles = [];
+    delete input.rewards;
+    const endless = parseLevelScript(input, PALETTE);
+    expect(() => constraintOf(endless)).toThrow(/neither a constraint nor a timer/);
+  });
+});
+
+describe('starsMetric', () => {
+  it('classifies each authored star shape by its key', () => {
+    expect(starsMetric({ twoStarSecondsLeft: 1, threeStarSecondsLeft: 2 })).toBe('seconds');
+    expect(starsMetric({ twoStarMovesLeft: 1, threeStarMovesLeft: 2 })).toBe('moves');
+    expect(starsMetric({ twoStarMistakesLeft: 1, threeStarMistakesLeft: 2 })).toBe('mistakes');
+  });
+
+  it("falls back to 'unknown' for a shape carrying none of the known keys", () => {
+    // The parse pipeline's union schema never yields this, but the default stops
+    // an unrecognised shape from silently passing as a real metric.
+    expect(starsMetric({})).toBe('unknown');
   });
 });

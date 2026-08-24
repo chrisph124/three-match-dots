@@ -1,81 +1,85 @@
 import type { Board, Color } from './types';
 
+/** The eight (dRow, dCol) offsets of a cell's 8-neighbourhood. */
+const NEIGHBOUR_OFFSETS: readonly (readonly [number, number])[] = [
+  [-1, -1],
+  [-1, 0],
+  [-1, 1],
+  [0, -1],
+  [0, 1],
+  [1, -1],
+  [1, 0],
+  [1, 1],
+];
+
 /**
- * Push all unvisited same-colour 8-connected neighbours of cell onto stack.
+ * True when a same-colour simple path of at least `minChain` cells begins at
+ * `cell`. A depth-limited backtracking DFS over the 8-neighbourhood: it marks
+ * the growing path in `seen`, recurses into unvisited same-colour neighbours,
+ * and unwinds `seen` on every failed branch. Because a failed search restores
+ * `seen` to all-false, one `seen` array is safely reused across start cells.
+ *
+ * `depth` counts the cells already on the path including `cell`, so the search
+ * succeeds the moment the path reaches `minChain` cells.
  */
-function pushNeighbours(
-  stack: number[],
-  seen: boolean[],
+function chainFrom(
   board: Board,
+  seen: boolean[],
   cell: number,
+  depth: number,
   rows: number,
   cols: number,
   color: Color,
-): void {
+  minChain: number,
+): boolean {
+  if (depth >= minChain) {
+    return true;
+  }
+  seen[cell] = true;
   const row = Math.floor(cell / cols);
   const col = cell % cols;
-  for (let dRow = -1; dRow <= 1; dRow++) {
-    for (let dCol = -1; dCol <= 1; dCol++) {
-      if (dRow === 0 && dCol === 0) {
-        continue;
-      }
-      const nRow = row + dRow;
-      const nCol = col + dCol;
-      if (nRow < 0 || nCol < 0 || nRow >= rows || nCol >= cols) {
-        continue;
-      }
-      const neighbour = nRow * cols + nCol;
-      if (!seen[neighbour] && board[neighbour] === color) {
-        seen[neighbour] = true;
-        stack.push(neighbour);
-      }
+  for (const [dRow, dCol] of NEIGHBOUR_OFFSETS) {
+    const nRow = row + dRow;
+    const nCol = col + dCol;
+    if (nRow < 0 || nCol < 0 || nRow >= rows || nCol >= cols) {
+      continue;
+    }
+    const neighbour = nRow * cols + nCol;
+    if (board[neighbour] !== color || seen[neighbour]) {
+      continue;
+    }
+    if (chainFrom(board, seen, neighbour, depth + 1, rows, cols, color, minChain)) {
+      return true;
     }
   }
+  seen[cell] = false;
+  return false;
 }
 
 /**
- * True when some same-colour, 8-connected component is at least `minChain`
- * cells large — which is exactly the condition for a legal chain to exist,
- * PROVIDED `minChain` is 3 or 4.
+ * True when the board still has a legal chain — some same-colour, 8-connected
+ * simple path of at least `minChain` cells. When false, the board is a genuine
+ * deadlock and the caller must reshuffle.
  *
- * The general claim "a component of size >= minChain always contains a path
- * of minChain vertices" is false (a star graph has arbitrarily many vertices
- * but no path longer than 3). It holds here only up to size 4, and only
- * because of a property specific to the 8-neighbourhood on a grid: any cell
- * has at most 2 mutually non-adjacent neighbours among its 8, so any 3
- * same-colour cells within a component must contain an adjacent pair — which
- * is enough to guarantee both a 3-path and a 4-path once a component reaches
- * that size. It is NOT enough to guarantee a 5-path or longer.
- *
- * Do not raise `minChain` above 4 without replacing this size check with a
- * real path search: past that bound this function can report a legal move
- * that does not exist, which is a genuine soft-lock for the player, not a
- * cosmetic bug.
+ * This searches for a real path rather than merely a large same-colour
+ * component. The two are NOT equivalent: a component of `minChain` cells need
+ * not contain a path of `minChain` cells. A cell can have three mutually
+ * non-adjacent same-colour neighbours (e.g. its N, SW, and SE cells), forming a
+ * 4-cell star whose longest chain is only 3 — so a size-only check reports a
+ * legal move that does not exist and soft-locks the player at `minChain` 4.
+ * The path search is sound for every `minChain` and matches the old size check
+ * exactly at `minChain` 3 (any 3-plus-cell component contains a 3-path).
  *
  * This must NOT be written as a scan for adjacent same-colour pairs. Under
  * 8-way adjacency the four cells of any 2x2 block are pairwise adjacent, so
- * with three colours the pigeonhole principle guarantees a same-colour pair
- * on every board — a pair-based check would always return true.
+ * with three colours the pigeonhole principle guarantees a same-colour pair on
+ * every board — a pair-based check would always return true.
  */
 export function hasLegalMove(board: Board, rows: number, cols: number, minChain: number): boolean {
   const seen = new Array<boolean>(rows * cols).fill(false);
-
   for (let start = 0; start < board.length; start++) {
-    if (seen[start]) {
-      continue;
-    }
-    const color = board[start];
-    const stack = [start];
-    seen[start] = true;
-    let size = 0;
-
-    while (stack.length > 0) {
-      const cell = stack.pop() as number;
-      size++;
-      if (size >= minChain) {
-        return true;
-      }
-      pushNeighbours(stack, seen, board, cell, rows, cols, color);
+    if (chainFrom(board, seen, start, 1, rows, cols, board[start], minChain)) {
+      return true;
     }
   }
   return false;

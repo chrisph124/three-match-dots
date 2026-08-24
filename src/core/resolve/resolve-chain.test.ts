@@ -189,4 +189,82 @@ describe('resolveChain', () => {
       expect(withDial?.spawns).toEqual(without?.spawns);
     });
   });
+
+  // The generic, mechanic-agnostic seam the layered-cage overlay and the solver
+  // both build on: a cell can be linked and counted in the chain yet resist
+  // removal. When the param is omitted or empty the output is byte-identical.
+  describe('protected cells (layered-cage seam)', () => {
+    const idxOf = (cells: readonly { index: number }[]) => cells.map((c) => c.index);
+
+    it('is byte-identical when the protected set is omitted, empty, or non-intersecting', () => {
+      const pairs: [string, number[]][] = [
+        [ART, [0, 1, 5]], // plain
+        [ART, [0, 1, 5, 4, 0]], // square-loop sweep
+        ['RRRRR', [0, 1, 2, 3, 4]], // straight-five line sweep
+        ['R/R/R', [0, 1, 2]], // vertical plain
+      ];
+      for (const seed of [1, 99, 2026, 555]) {
+        for (const [art, chain] of pairs) {
+          const twoArg = resolveChain(stateFrom(art, seed), chain);
+          expect(resolveChain(stateFrom(art, seed), chain, new Set())).toEqual(twoArg);
+          // Protecting a cell that never gets collected is a no-op: still identical.
+          expect(resolveChain(stateFrom(art, seed), chain, new Set([999]))).toEqual(twoArg);
+          // A byte-identical object shape means no `protectedHits` key at all.
+          expect(twoArg && 'protectedHits' in twoArg).toBe(false);
+        }
+      }
+    });
+
+    it('excludes a protected cell from a plain chain and echoes it in protectedHits', () => {
+      // chain [0,1,5] is three R; protecting 5 pops only 0 and 1.
+      const result = resolveChain(stateFrom(ART), [0, 1, 5], new Set([5]));
+      expect(result?.kind).toBe('plain'); // classified on the FULL 3-chain
+      expect(idxOf(result?.cleared ?? [])).toEqual([0, 1]);
+      expect(idxOf(result?.protectedHits ?? [])).toEqual([5]);
+      expect(result?.falls).toHaveLength(0); // 0,1 are above 5; nothing falls
+      expect(result?.scoreDelta).toBe(30); // plain 2 = 10*2*3/2, not the 3-chain's 60
+      expect(result?.spawns).toHaveLength(2); // only the two popped holes refill
+    });
+
+    it('lets a protected cell ride gravity down when cells clear below it', () => {
+      // vertical R/R/R, chain [0,1,2]; protect the top cell, pop the two below.
+      const result = resolveChain(stateFrom('R/R/R'), [0, 1, 2], new Set([0]));
+      expect(idxOf(result?.cleared ?? [])).toEqual([1, 2]);
+      expect(idxOf(result?.protectedHits ?? [])).toEqual([0]);
+      expect(result?.falls).toContainEqual({ from: 0, to: 2 });
+    });
+
+    it('keeps a protected cell in place when cells clear only above it', () => {
+      const result = resolveChain(stateFrom('R/R/R'), [0, 1, 2], new Set([2]));
+      expect(idxOf(result?.cleared ?? [])).toEqual([0, 1]);
+      expect(idxOf(result?.protectedHits ?? [])).toEqual([2]);
+      expect(result?.falls).toHaveLength(0);
+    });
+
+    it('handles two protected cells in one column, ordered row-major', () => {
+      const result = resolveChain(stateFrom('R/R/R'), [0, 1, 2], new Set([0, 2]));
+      expect(idxOf(result?.cleared ?? [])).toEqual([1]);
+      expect(idxOf(result?.protectedHits ?? [])).toEqual([0, 2]);
+      expect(result?.falls).toContainEqual({ from: 0, to: 1 });
+    });
+
+    it('preserves sweep classification while chipping only the protected cage-cells', () => {
+      // square-loop sweeps all ten R; protect two R cells outside the loop.
+      const result = resolveChain(stateFrom(ART), [0, 1, 5, 4, 0], new Set([3, 12]));
+      expect(result?.kind).toBe('square-loop'); // still a loop despite the protection
+      expect(result?.cleared).toHaveLength(8); // 10 R minus the 2 protected
+      expect(idxOf(result?.protectedHits ?? [])).toEqual([3, 12]); // collected order
+      expect(result?.scoreDelta).toBe(240); // sweep 8 = 10*8*3
+    });
+
+    it('accepts an all-protected loop: legal commit, empty cleared, zero score, no throw', () => {
+      // 2x2 all-R loop with every corner protected clears nothing but still commits.
+      const result = resolveChain(stateFrom('RR/RR'), [0, 1, 3, 2, 0], new Set([0, 1, 2, 3]));
+      expect(result).not.toBeNull();
+      expect(result?.cleared).toHaveLength(0);
+      expect(result?.protectedHits).toHaveLength(4);
+      expect(result?.scoreDelta).toBe(0);
+      expect(result?.board).toEqual([0, 0, 0, 0]); // nothing removed or refilled
+    });
+  });
 });

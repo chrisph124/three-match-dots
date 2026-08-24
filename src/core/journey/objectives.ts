@@ -35,14 +35,19 @@ export function initObjectives(
  * Advances every objective off one resolution. Pure: returns a new array and
  * never mutates the input.
  *
- * - `clearColor` adds the cleared cells of its colour, clamped to target.
+ * - `clearColor` adds the cleared cells of its colour, clamped to target. It
+ *   reads ONLY `resolution.cleared`, so a chipped multi-layer cage (which lands
+ *   in `resolution.protectedHits`, never `cleared`) does NOT advance it — only an
+ *   actual pop counts toward a colour objective.
  * - `freeCaged` is derived from how many cages remain (`target - remaining`),
- *   so it needs the post-free/post-remap caged set for this resolution.
+ *   so it needs the post-chip/post-remap caged overlay for this resolution. The
+ *   overlay is a `Map<index, layers>`; only its `.size` (cages still present)
+ *   matters here — a cage still counts as unfreed while any layer remains.
  */
 export function foldObjectives(
   progress: readonly ObjectiveProgress[],
   resolution: Resolution,
-  cagedRemaining: ReadonlySet<CellIndex>,
+  cagedRemaining: ReadonlyMap<CellIndex, number>,
 ): ObjectiveProgress[] {
   return progress.map((entry) => {
     const { objective, target } = entry;

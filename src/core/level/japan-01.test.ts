@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { hasLegalMove } from '../deadlock';
 import { newGame } from '../game';
 import { DOT_COLORS } from '../../render/palette';
-import { cagedCellIndices, levelToConfig, parseLevelScript } from './level-script';
+import { cagedCellIndices, cagedCells, levelToConfig, parseLevelScript } from './level-script';
 
 /**
  * Fixture guard for the one shipped Journey level. It loads the real
@@ -35,6 +35,14 @@ describe('japan-01 fixture', () => {
   it('cages the three intended cells (row 3, cols 2-4)', () => {
     const level = parseLevelScript(RAW, PALETTE);
     expect(cagedCellIndices(level)).toEqual([20, 21, 22]);
+  });
+
+  it('carries one authored 2-layer cage (Validation S1), the rest 1-layer', () => {
+    const level = parseLevelScript(RAW, PALETTE);
+    const layers = cagedCells(level)
+      .map((c) => c.layers)
+      .sort((a, b) => a - b);
+    expect(layers).toEqual([1, 1, 2]);
   });
 
   it('deals the authored cage colors under its fixed seed', () => {

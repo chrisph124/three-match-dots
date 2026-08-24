@@ -1,13 +1,15 @@
-# Three Dots — Level-Script Schema (v0)
+# Three Dots — Level-Script Schema (v1 + v2)
 
-**Date:** 2026-08-06 (concept); retargeted to React Native / TypeScript / `zod` 2026-08-16.
-**Status:** v0 — **LOCKED** as the contract for the level loader. This is authored BEFORE the loader and
-the `level-designer` agent (see `docs/rnd-department.md` sequencing) — they both consume it, so it is
-stable first. **Not yet implemented on `main`** — there is no `src/core/level/` yet; this is the shape a
-future loader will parse and validate when it lands. Evolve only via a `schemaVersion` bump (add optional
-fields freely; bump on any breaking change).
-**Purpose:** A machine-readable definition of one Journey city (level). One file = one city. The engine loads
-and validates these; the `level-designer` produces them.
+**Date:** 2026-08-06 (concept); retargeted to React Native / TypeScript / `zod` 2026-08-16;
+extended to **schemaVersion 2 (Voyage)** 2026-08-24.
+**Status:** **Implemented** in `src/core/level/level-script.ts` (`parseLevelScript`). The validator now
+accepts **schemaVersion `1` OR `2`**: v1 is the shipped Journey/Endless contract, v2 adds the `voyage`
+mode, the pluggable `constraint` union, and the optional `voyage`/`theme` blocks (see "Schema v2 —
+Voyage additions" below). Every v1 level parses unchanged under v2. Evolve only via a `schemaVersion`
+bump (add optional fields freely; bump on any breaking change).
+**Purpose:** A machine-readable definition of one level. One file = one level. The engine loads and
+validates these; Journey cities are hand-authored, Voyage levels are emitted by the generator
+(`src/core/voyage/`).
 **Related:** `docs/three-dots-game-design.md` (mechanic/obstacles), `docs/rnd-department.md` (who authors),
 `docs/creative-bible.md` (look).
 
@@ -75,6 +77,74 @@ and validates these; the `level-designer` produces them.
 }
 ```
 
+## Schema v2 — Voyage additions
+
+`schemaVersion: 2` is a **superset** of v1: every v1 field keeps its meaning, and these fields are added.
+A voyage level uses them; a Journey/Endless level may stay on v1 or set version 2 without change.
+
+```jsonc
+{
+  "schemaVersion": 2,
+  "id": "voyage-010-caged-core", // voyage-{index}-{slug}
+  "order": 10,
+  // chapter/city are now OPTIONAL — Journey-only framing; a voyage level omits both.
+  "board": { "cols": 6, "rows": 6, "colors": 3, "minChain": 3 },
+  "mode": "voyage", // "journey" | "endless" | "voyage"
+
+  // The play constraint — REQUIRED for voyage; replaces `timer` (a voyage level
+  // must NOT carry a timer). Discriminated on `type`:
+  "constraint": { "type": "moves", "budget": 25 },
+  //           | { "type": "timed", "startMs": 45000, "mistakePenaltyMs": 1500, "clearBonusMs": 0 }
+  //           | { "type": "mistakes", "cap": 5 }
+
+  // Where the level sits in the ladder — REQUIRED for voyage.
+  "voyage": { "index": 10, "episode": 1, "isBoss": true },
+
+  // Additive render metadata for the diorama layer — OPTIONAL, consumed by render.
+  // Unknown biome/variant ids fall back at render time; they are NOT a parse error.
+  "theme": {
+    "biome": "harbor",
+    "variant": "dusk",
+    "particle": "embers",
+    "trim": "brass",
+    "parallaxSeed": 7,
+    "boss": true,
+  },
+
+  "objectives": [{ "type": "freeCaged" }],
+  "obstacles": [{ "type": "cagedDot", "cell": { "col": 2, "row": 5 } }],
+
+  // Star thresholds carry the CONSTRAINT's metric (see below), not always seconds.
+  "rewards": { "stars": { "twoStarMovesLeft": 5, "threeStarMovesLeft": 10 } },
+}
+```
+
+**`constraint` (v2, required for voyage).** A discriminated union on `type`:
+
+| `type`     | Fields                                        | Metric         |
+| ---------- | --------------------------------------------- | -------------- |
+| `moves`    | `budget` (int > 0)                            | `movesLeft`    |
+| `timed`    | `startMs`, `mistakePenaltyMs`, `clearBonusMs` | `secondsLeft`  |
+| `mistakes` | `cap` (int > 0)                               | `mistakesLeft` |
+
+The `timed` variant's field shapes are byte-identical to the Journey `timer`, so the countdown math is
+shared, not forked. `constraintOf(level)` returns the level's constraint, mapping a Journey `timer` into
+an equivalent `timed` constraint — one uniform entry point for the Voyage state machine.
+
+**`voyage` (v2, required for voyage):** `{ index: int ≥ 1, episode: int ≥ 1, isBoss: boolean }`.
+
+**`theme` (v2, optional):** `{ biome, variant, particle, trim, parallaxSeed: int, boss: boolean }` — all
+strings except `parallaxSeed`/`boss`. Additive; the render layer owns the biome table and falls back on
+an unknown id rather than failing the parse.
+
+**`rewards.stars` metric rule (v2):** the star thresholds are expressed in the level's constraint metric
+— `twoStarMovesLeft`/`threeStarMovesLeft` (moves), `twoStarSecondsLeft`/`threeStarSecondsLeft`
+(timed/Journey), or `twoStarMistakesLeft`/`threeStarMistakesLeft` (mistakes). A shape whose metric does
+not match the constraint is a **parse error**. The seconds shape is unchanged from v1.
+
+**v2 fail-fast rules (added to the v1 rules below):** `mode: 'voyage'` ⇒ `schemaVersion === 2`,
+`constraint` present, `voyage` envelope present, `objectives` non-empty, and `timer` absent.
+
 ## Board → engine config mapping
 
 The engine already exposes `GameConfig` (`src/core/types.ts`) and `DEFAULT_CONFIG`
@@ -124,7 +194,26 @@ valid. Treat `spawnWeights` as reserved for a possible future weighted-refill fe
 
 ```jsonc
 { "type": "cagedDot", "cell": { "col": 2, "row": 3 } }
+{ "type": "cagedDot", "cell": { "col": 3, "row": 3 }, "layers": 2 } // multi-layer
 ```
+
+**`layers?` (optional, integer 1–5, default 1).** How many same-color clears (each including the caged
+dot) it takes to break the cage. `1` = the original instant-pop intro (omit the field for it — **no
+`schemaVersion` bump**; every existing level parses unchanged). A cage with `layers ≥ 2` stays linkable
+and **chips** one layer per qualifying clear, popping only on the last. The accessor reads
+`obstacle.layers ?? 1` (`cagedCells`, `src/core/level/level-script.ts`).
+
+**Voyage derives depth by band, not per level.** The generated + boss ladder assigns depth from
+`CAGE_LAYERS = { teach: 1, mid: 2, boss: 3 }` (`src/core/voyage/voyage-config.ts`), boss-first, so the whole
+first (teaching) episode is 1-layer unless a curated level authors an override. An authored `layers` value
+always wins over the band default.
+
+**Authored Journey levels are NOT solver-swept**, so a hand-authored `layers ≥ 2` cage must be
+**hand-verified winnable** on-device — the winnability sweep only covers generated + boss levels and any
+_curated_ level that carries a multi-layer cage (which is why such curated levels now route through
+`calibrateLevel`; see `docs/tech-stack-and-infra.md`). Two `layers: 2` instances ship this slice:
+**japan-01's** center cage (Journey, hand-verified) and the **seeded pre-boss Voyage teaching cage** (the
+one curated multi-layer level routed through the solver sweep).
 
 No authored `color`. The shipped board dealer (`newGame`, `src/core/game.ts`) fills every cell by RNG
 with no per-cell override, so an authored `color` on a cage would be decorative at best and misleading at
@@ -142,22 +231,34 @@ catalog entries for a later `schemaVersion`, not validated yet.
 
 ## Freeing semantics
 
-A caged cell is freed by **any** clear of its color — a normal `≥minChain` chain, a 2×2-loop sweep, or a
+A caged cell is affected by **any** clear of its color — a normal `≥minChain` chain, a 2×2-loop sweep, or a
 `≥lineLength` straight-line sweep. `src/core/resolve/collect-cleared.ts` marks every same-color cell on
 the board `reason: 'color-sweep'` for a loop or line clear, not just the chain cells, so loop and line
-sweeps clear that color **board-wide** — a single sweep can free every caged cell of that color at once.
+sweeps reach that color **board-wide** — a single sweep touches every caged cell of that color at once.
 This is a **tuning consideration for level authors**, not just a chain-adjacency detail: placing several
-same-color cages expecting them to be freed one at a time will instead free them all together the first
-time that color sweeps.
+same-color cages expecting them to be freed one at a time will instead have them all affected together the
+first time that color sweeps.
+
+**With layers:** a 1-layer cage frees on the first such clear (unchanged). A `layers ≥ 2` cage is
+**protected** — `resolveCagedChain` (`src/core/resolve-caged-chain.ts`) passes the `protectedOf(caged)`
+set (every cage with ≥2 layers) into `resolveChain`, which lets the caged dot link, count, and classify
+on the full chain/sweep but partitions it into `Resolution.protectedHits` instead of `cleared`: it **chips**
+one layer rather than popping. It frees (pops) only on the clear that removes its last layer. So a
+board-wide color sweep peels **one** layer from every same-color cage at once, freeing only those then on
+their final layer — a deep cage survives a sweep it shares with shallower ones.
 
 ## Field rules / validation
 
 - `id` unique across all levels.
 - `board.colors <=` the render palette length (see "`colors` bound" above); `board.minChain` in `[2, 4]`.
   The lower bound `>= 2` matches the runtime guard in `newGame` (`src/core/game.ts`); the upper bound `<= 4`
-  is required because `hasLegalMove` (`src/core/deadlock.ts`) is only sound for `minChain` 3–4 — above 4 it
-  can report a legal move that does not exist, soft-locking a timed Journey board when `shuffle.ts` reshuffles
-  on that same `minChain`. A level with `minChain > 4` fails at parse, never at play.
+  is a design/scope ceiling — `minChain 4` is the hardest legal difficulty dial (`MAX_MIN_CHAIN`,
+  `voyage-config.ts`), and `[2, 4]` is the validated, tested envelope every shipped mode plays within.
+  (`hasLegalMove` in `src/core/deadlock.ts` is a same-colour simple-path search, **sound at every**
+  `minChain` — so the cap is a scope bound, not a deadlock-soundness one. It must stay a path search,
+  never a same-colour _component-size_ test: a 4-cell "star" has a size-4 component but no 4-chain, which
+  a size test would wrongly call legal and soft-lock a board at `minChain 4`.) A level with `minChain > 4`
+  fails at parse, never at play.
 - `timer` **required iff** `mode == "journey"`; forbidden (or ignored) for `endless`.
 - `objectives` non-empty for journey levels; every `objective.color < board.colors`.
 - **Color is a positional palette index.** `objective.color` (and, for a future weighted-obstacle type,
@@ -186,9 +287,12 @@ design:
 
 ## Versioning
 
-- `schemaVersion` starts at `1`. Adding an **optional** field with a safe default = non-breaking (keep version).
-  Renaming/removing/retyping a field, or adding a **required** field = bump `schemaVersion` and migrate authored
-  levels. The `zod` validator rejects a version it doesn't understand rather than mis-parsing.
+- `schemaVersion` is `1` or `2`; the validator **accepts both** and rejects any other value rather than
+  mis-parsing. Adding an **optional** field with a safe default is non-breaking (keep version). A new
+  **mode** with its own required fields (Voyage's `constraint`/`voyage`) is gated behind a version bump so
+  the older shape stays valid — hence `mode: 'voyage'` requires `schemaVersion: 2` while every v1 level
+  parses unchanged under either version. Renaming/removing/retyping a field, or adding a field required of
+  **all** levels, = bump `schemaVersion` and migrate authored levels.
 
 ## Why this must precede the agent
 
