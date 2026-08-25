@@ -96,7 +96,7 @@ implement Journey.
 | 3   | [Phase 3: Dark receded city skyline + inset board panel + flat color dots](./phase-03-backdrop-and-panel.md) | Superseded¹ | P1       | 2          |
 | 4   | [Phase 4: Score-milestone theme index + cross-fade](./phase-04-score-milestone-themes.md)                    | Dropped¹    | P1       | 1, 3       |
 | 5   | [Phase 5: HUD / title / settings reskin (static)](./phase-05-ui-reskin.md)                                   | Done²       | P1       | —          |
-| 6   | [Phase 6: Animated title via `rive-react-native`](./phase-06-rive-title.md)                                  | Pending     | P2       | 5          |
+| 6   | [Phase 6: Animated title via `rive-react-native`](./phase-06-rive-title.md)                                  | Done³       | P2       | 5          |
 | 7   | [Phase 7: Mascot moment (deferred — gated on art)](./phase-07-mascot-deferred.md)                            | Deferred    | P3       | 5          |
 
 **Sequencing notes.** Phases 1, 2, and 5 are independent and may run in parallel
@@ -120,14 +120,29 @@ Phase 4 depends on 3 (needs the theme catalog) and 1 (reuses `useReduceMotion`).
 >   Phase 6 depends on 5 (reskinned title is the mount point). Phase 7 is gated on
 >   mascot art and blocks nothing — it ships whenever the art lands.
 
-> **² Phase 5 done, on-device gate open (2026-08-25).** Night-paper reskin of
+> **² Phase 5 done, on-device VERIFIED (2026-08-25).** Night-paper reskin of
 > title/HUD/settings shipped against the ACTUAL plain dark board (Phase 3 backdrop is
 > superseded, see ¹ above) — `src/render/ui-theme.ts` + reskinned `index.tsx` /
 > `settings.tsx` / `game.tsx`. `lint`/`typecheck`/`test` green, `code-reviewer` verdict
 > DONE, hit-test subtree + all functional wiring (gesture, score, Alert, nav)
-> code-verified unchanged. **Outstanding:** real-device sign-off (touch feel, gesture
-> hit-test after the HUD-chrome change, visual look) per the repo's Skia/RN
-> verification-boundary rule — not yet run. See `phase-05-ui-reskin.md` § Completion.
+> code-verified unchanged, **and the owner signed off on device 2026-08-25** (touch
+> feel, gesture hit-test after the HUD-chrome change, visual look all pass). Phase 5
+> fully closed. See `phase-05-ui-reskin.md` § Completion.
+>
+> **³ Phase 6 done, wiring-only — TWO OWNER-GATED ITEMS OPEN (2026-08-25).** Full
+> wiring shipped, iOS-scoped, user-approved: `rive-react-native ^9.8.5` (legacy,
+> zero-nitro — the Nitro successor was correctly rejected, it peers
+> `react-native-nitro-modules "<0.36"` vs this repo's pinned `^0.36.5` needed by mmkv
+> v4), `metro.config.js`, `src/render/rive-title.tsx` (`<RiveTitle>` static-fallback
+> guard), `index.tsx` mount. Deliberately did NOT create a placeholder `assets/rive/title.riv`
+> (would hard-crash the native Rive runtime and violates the no-fake-assets rule);
+> `riveTitleSource()` returns `null` today so the Phase 5 static lockup always renders —
+> same user-visible result, no crash, no fake asset. `lint`/`typecheck`/`test`/
+> `audit:diff`/`vendored:check`/`coverage:diff` all green, `code-reviewer` verdict DONE.
+> **Two items stay open, NOT done:** (1) title animating on device — blocked on real
+> `.riv` art, a separate later rnd-department slice; (2) the native dev-client rebuild
+> (`expo run:ios`) — the owner's device step, required because a native module was
+> added (OTA alone will not pick it up). See `phase-06-rive-title.md` § Completion.
 
 ## Cross-plan relationships
 
@@ -152,10 +167,12 @@ Phase 4 depends on 3 (needs the theme catalog) and 1 (reuses `useReduceMotion`).
       element; score + Back text hold ≥ 4.5:1 over the scene.
 - [ ] Backdrop cross-fades at score milestones; theme is reproducible from score alone
       and resets with the score. No timer, no fail state, one continuous board.
-- [x] Title / HUD / settings read as intentional paper-craft. (Phase 5, done; on-device
-      look/feel sign-off still open — see ² above.)
+- [x] Title / HUD / settings read as intentional paper-craft. (Phase 5, done and
+      on-device verified 2026-08-25 — see ² above.)
 - [ ] Reduce Motion swaps every animation for a static/reduced variant.
-- [ ] Exactly one new dependency added (`rive-react-native`).
+- [x] Exactly one new dependency added (`rive-react-native`). (Phase 6, done
+      2026-08-25 — `^9.8.5`, legacy/zero-nitro, Expo-pinned. See ³ above; the on-device
+      "title animates" gate stays open, see phase-06 § Completion.)
 - [ ] `npm run lint` + `npm run typecheck` + `npm test` green; new pure logic
       (geometry origin, `themeIndexForScore`) covered by Vitest; RN/Skia/gesture
       layers verified on-device.

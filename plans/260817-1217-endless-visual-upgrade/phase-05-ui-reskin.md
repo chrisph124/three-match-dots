@@ -80,10 +80,10 @@ the reset `Alert`.
       direction.
 - [x] Every existing behavior intact: play, score persist + focus-refresh, reset-with-
       confirm, navigation.
-- [ ] Gesture hit-testing re-verified on device **after** the board-frame chrome lands
-      — tap-start hits the visible dot with no offset. **OUTSTANDING — on-device gate not
-      yet run** (code-level subtree preservation confirmed by review; real-device tap-hit
-      check is the remaining owner action).
+- [x] Gesture hit-testing re-verified on device **after** the board-frame chrome lands
+      — tap-start hits the visible dot with no offset. **VERIFIED on device 2026-08-25**
+      by the owner (code-level subtree preservation had been confirmed by review; the
+      real-device tap-hit + look/feel check now passes).
 - [x] Frozen dot palette untouched; new tokens are additive; each screen ~<200 lines.
 - [x] No new dependency; no em-dashes in UI copy; `lint` + `typecheck` + `test` green.
 

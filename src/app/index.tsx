@@ -2,6 +2,7 @@ import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { readScore } from '../meta/score-storage';
+import { RiveTitle } from '../render/rive-title';
 import { fontSize, labelTracking, radius, space, ui } from '../render/ui-theme';
 
 type NavButton = {
@@ -27,14 +28,20 @@ export default function TitleScreen() {
     }, []),
   );
 
+  // The paper-craft lockup is also the Reduce-Motion / no-art fallback for the
+  // animated Rive title, so build it once and hand it to <RiveTitle>.
+  const lockup = (
+    <View style={styles.lockup}>
+      <Text style={styles.kanji}>三</Text>
+      <Text style={styles.title}>Three Dots</Text>
+      <Text style={styles.subtitle}>ENDLESS</Text>
+      <View style={styles.seal} />
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <View style={styles.lockup}>
-        <Text style={styles.kanji}>三</Text>
-        <Text style={styles.title}>Three Dots</Text>
-        <Text style={styles.subtitle}>ENDLESS</Text>
-        <View style={styles.seal} />
-      </View>
+      <RiveTitle fallback={lockup} />
 
       <View style={styles.scoreCard}>
         <Text style={styles.scoreValue}>{score}</Text>
