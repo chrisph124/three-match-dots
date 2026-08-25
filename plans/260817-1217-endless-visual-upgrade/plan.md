@@ -1,7 +1,7 @@
 ---
 title: 'Endless Visual Upgrade'
 description: 'Make Endless mode look and feel premium: a first-to-last chain merge relay with per-hop fade and a soft drop bounce, dead-flat solid-colour dots (bright frozen hues, colour-only) on an inset dark board panel over a dark, receded flat-vector city skyline that evolves at score milestones, and a fuller paper-craft UI across the title, game, and settings screens.'
-status: in-progress
+status: completed
 priority: P1
 effort: "~6-9 dev-days across 6 shippable PRs (+1 deferred art-gated slice); Phases 1 & 3 reworked 2026-08-17; Phase 3 refined (full-bleed + cat's-eye marble) 2026-08-17, re-pivoted (matte candy + dark receded inset board) 2026-08-18, then simplified (flat colour-only dots + dark city skyline, marble subsystem deleted) 2026-08-18"
 tags: [endless, visual, skia, reanimated, reduce-motion, paper-craft]
@@ -11,6 +11,15 @@ blocks: []
 ---
 
 # Endless Visual Upgrade
+
+> **Plan closed — active scope complete (2026-08-25).** Every buildable phase is
+> resolved: 1, 2, 5, 6 delivered; **3 superseded** and **4 dropped** by the 2026-08-18
+> plain-board pivot (see ¹); **7 deferred** (art-gated). Phase 6's _animate-on-device_
+> box stays **owner-gated** — it needs real `.riv` art plus a dev-client rebuild. Those
+> residual unchecked boxes are deliberately-not-done work, not pending tasks, so a
+> checkbox-based `ak plan status` still reads ~50% (20/40); the honest signal is this
+> closed state. On-device Rive animate and the mascot moment are follow-ups outside
+> this plan.
 
 ## Overview
 
