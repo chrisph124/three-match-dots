@@ -1,8 +1,21 @@
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { readScore } from '../meta/score-storage';
-import { SCREEN_BACKGROUND, TEXT_COLOR } from '../render/palette';
+import { fontSize, labelTracking, radius, space, ui } from '../render/ui-theme';
+
+type NavButton = {
+  href: '/game' | '/journey' | '/voyage' | '/settings';
+  label: string;
+  primary?: boolean;
+};
+
+const BUTTONS: readonly NavButton[] = [
+  { href: '/game', label: 'Play', primary: true },
+  { href: '/journey', label: 'Journey' },
+  { href: '/voyage', label: 'Voyage' },
+  { href: '/settings', label: 'Settings' },
+];
 
 export default function TitleScreen() {
   const [score, setScore] = useState(readScore);
@@ -16,33 +29,105 @@ export default function TitleScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>three-match-dots</Text>
-      <Text style={styles.score}>{score}</Text>
-      <Link href="/game" style={styles.link}>
-        Play
-      </Link>
-      <Link href="/journey" style={styles.link}>
-        Journey
-      </Link>
-      <Link href="/voyage" style={styles.link}>
-        Voyage
-      </Link>
-      <Link href="/settings" style={styles.link}>
-        Settings
-      </Link>
+      <View style={styles.lockup}>
+        <Text style={styles.kanji}>三</Text>
+        <Text style={styles.title}>Three Dots</Text>
+        <Text style={styles.subtitle}>ENDLESS</Text>
+        <View style={styles.seal} />
+      </View>
+
+      <View style={styles.scoreCard}>
+        <Text style={styles.scoreValue}>{score}</Text>
+        <Text style={styles.scoreLabel}>SCORE</Text>
+      </View>
+
+      <View style={styles.buttons}>
+        {BUTTONS.map(({ href, label, primary }) => (
+          <Link key={href} href={href} asChild>
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.btn,
+                primary ? styles.btnPrimary : styles.btnSecondary,
+                pressed && (primary ? styles.btnPrimaryPressed : styles.btnSecondaryPressed),
+              ]}
+            >
+              <Text style={primary ? styles.btnPrimaryLabel : styles.btnSecondaryLabel}>
+                {label}
+              </Text>
+            </Pressable>
+          </Link>
+        ))}
+      </View>
     </View>
   );
 }
+
+const card = {
+  backgroundColor: ui.paper,
+  borderWidth: 1,
+  borderColor: ui.paperEdge,
+  borderRadius: radius.md,
+  shadowColor: ui.shadow,
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 1,
+  shadowRadius: 14,
+  elevation: 4,
+} as const;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
-    backgroundColor: SCREEN_BACKGROUND,
+    gap: space.xl,
+    paddingHorizontal: space.xxl,
+    backgroundColor: ui.night,
   },
-  title: { fontSize: 28, fontWeight: '600', color: TEXT_COLOR },
-  score: { fontSize: 48, fontWeight: '700', color: TEXT_COLOR, fontVariant: ['tabular-nums'] },
-  link: { fontSize: 18, color: '#4f8cff' },
+  lockup: {
+    ...card,
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: space.xl,
+    paddingHorizontal: space.lg,
+  },
+  kanji: { position: 'absolute', top: space.md, right: space.lg, fontSize: 16, color: ui.shu },
+  title: { fontSize: fontSize.title, fontWeight: '800', color: ui.ink, letterSpacing: 0.3 },
+  subtitle: {
+    marginTop: space.xs,
+    fontSize: 12,
+    letterSpacing: 2.2,
+    color: ui.inkSoft,
+    fontWeight: '600',
+  },
+  seal: {
+    position: 'absolute',
+    bottom: -10,
+    width: 22,
+    height: 22,
+    borderRadius: radius.sm,
+    backgroundColor: ui.shu,
+  },
+  scoreCard: { ...card, width: '78%', alignItems: 'center', paddingVertical: space.md },
+  scoreValue: {
+    fontSize: fontSize.score,
+    fontWeight: '800',
+    color: ui.ink,
+    fontVariant: ['tabular-nums'],
+  },
+  scoreLabel: {
+    marginTop: space.xs,
+    fontSize: fontSize.label,
+    letterSpacing: labelTracking,
+    color: ui.inkSoft,
+    fontWeight: '600',
+  },
+  buttons: { width: '100%', gap: space.md },
+  btn: { borderRadius: radius.md, paddingVertical: 13, alignItems: 'center', borderWidth: 1 },
+  btnPrimary: { backgroundColor: ui.shu, borderColor: ui.shuEdge },
+  btnPrimaryPressed: { backgroundColor: ui.shuEdge },
+  btnPrimaryLabel: { fontSize: fontSize.body, fontWeight: '700', color: '#fff' },
+  btnSecondary: { backgroundColor: ui.paper, borderColor: ui.paperEdge },
+  btnSecondaryPressed: { backgroundColor: ui.paperPressed },
+  btnSecondaryLabel: { fontSize: fontSize.body, fontWeight: '600', color: ui.ai },
 });

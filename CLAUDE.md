@@ -7,7 +7,7 @@ Guidance for Claude Code when working in this repository.
 **Three Dots** (repo: `three-match-dots`) is a mobile puzzle game in the **Two Dots** mold (NOT a
 Candy Crush / match-3 clone). iOS-first, built with **React Native**. The concept ships two modes:
 **Endless** (score-attack, no fail state — built and playable) and **Journey** (timed, level-based,
-world-map progression — designed, vertical slice in progress; see "Scope" below).
+world-map progression — core engine on `main`, render/on-device verification in progress; see "Scope" below).
 
 **Core loop:** drag through ADJACENT same-color dots (8-way — orthogonal AND diagonal) to link a
 chain; chains of ≥3 clear on release; closing a 2×2 loop OR drawing a straight run of ≥5 clears
@@ -18,8 +18,11 @@ A board with no legal chain reshuffles. Endless is zen — no fail state.
 **Current status:** Endless is playable. The game core (`src/core/`), Skia render layer
 (`src/render/`), gesture input (`src/input/`), animation (`src/effects/`), and score persistence
 (`src/meta/`) are all built and wired for Endless. 6×6 board, 3 colors, endless play with a
-persisted score. Journey (timed levels, obstacles, world map) is designed but not yet
-implemented — no `src/core/level/` or `src/core/journey/` exists yet.
+persisted score. Journey's core is now implemented on `main` — `src/core/level/` (level-script
+loader + `parseLevelScript`), `src/core/journey/` (journey state), `src/core/obstacles/` (layered
+caged dots), and the infinite-variant engine `src/core/voyage/` are committed and unit-tested. What
+remains is on-device verification of the Skia render layers (Voyage diorama/ribbon/boss; the
+layered-cage overlay + first-cage teaching) — code-complete, not yet signed off on a device.
 Game design: `docs/three-dots-game-design.md` (current authority; `docs/two-dots-game-design.md`
 is superseded, kept for history). Team workflow design: `docs/team-workflow-design.md`.
 
@@ -90,10 +93,12 @@ testing on a cheap real Android device is required before the Play release.
 **Shipped:** Two Dots-derived mechanic (8-way linking, 2×2-loop and ≥5-line sweeps, shuffle on
 deadlock), endless score-attack mode, juicy visuals, a persisted score, iOS.
 
-**Vertical slice in progress:** Journey mode — timed levels, a caged-dot obstacle, one
-hand-authored Japan level, world-map progression. Design authority: `docs/three-dots-game-design.md`,
-`docs/level-script-schema.md` (the level-script contract), `docs/creative-bible.md` (look/feel).
-Not yet in `src/` — do not assume any Journey code exists until it lands.
+**Vertical slice in progress:** Journey mode — timed levels, a (now layered) caged-dot obstacle, one
+hand-authored Japan level, world-map progression — plus the infinite variant **Voyage**. Design
+authority: `docs/three-dots-game-design.md`, `docs/level-script-schema.md` (the level-script
+contract), `docs/creative-bible.md` (look/feel). The pure-TS engine, level system, obstacles, and
+Voyage generator/solver are on `main` and unit-tested (`src/core/{level,journey,obstacles,voyage}/`);
+the Skia render layers are code-complete but pending on-device verification — the remaining gate.
 
 **Out of scope for now (do not build unless asked):** levels/campaign beyond the vertical slice,
 monetization/ads/IAP, online/leaderboards, accounts/cloud-save, Android. Architecture must not

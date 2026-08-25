@@ -95,7 +95,7 @@ implement Journey.
 | 2   | [Phase 2: Canvas-coordinate plumbing (zero visual diff)](./phase-02-canvas-coordinates.md)                   | Completed   | P1       | —          |
 | 3   | [Phase 3: Dark receded city skyline + inset board panel + flat color dots](./phase-03-backdrop-and-panel.md) | Superseded¹ | P1       | 2          |
 | 4   | [Phase 4: Score-milestone theme index + cross-fade](./phase-04-score-milestone-themes.md)                    | Dropped¹    | P1       | 1, 3       |
-| 5   | [Phase 5: HUD / title / settings reskin (static)](./phase-05-ui-reskin.md)                                   | Pending     | P1       | —          |
+| 5   | [Phase 5: HUD / title / settings reskin (static)](./phase-05-ui-reskin.md)                                   | Done²       | P1       | —          |
 | 6   | [Phase 6: Animated title via `rive-react-native`](./phase-06-rive-title.md)                                  | Pending     | P2       | 5          |
 | 7   | [Phase 7: Mascot moment (deferred — gated on art)](./phase-07-mascot-deferred.md)                            | Deferred    | P3       | 5          |
 
@@ -120,6 +120,15 @@ Phase 4 depends on 3 (needs the theme catalog) and 1 (reuses `useReduceMotion`).
 >   Phase 6 depends on 5 (reskinned title is the mount point). Phase 7 is gated on
 >   mascot art and blocks nothing — it ships whenever the art lands.
 
+> **² Phase 5 done, on-device gate open (2026-08-25).** Night-paper reskin of
+> title/HUD/settings shipped against the ACTUAL plain dark board (Phase 3 backdrop is
+> superseded, see ¹ above) — `src/render/ui-theme.ts` + reskinned `index.tsx` /
+> `settings.tsx` / `game.tsx`. `lint`/`typecheck`/`test` green, `code-reviewer` verdict
+> DONE, hit-test subtree + all functional wiring (gesture, score, Alert, nav)
+> code-verified unchanged. **Outstanding:** real-device sign-off (touch feel, gesture
+> hit-test after the HUD-chrome change, visual look) per the repo's Skia/RN
+> verification-boundary rule — not yet run. See `phase-05-ui-reskin.md` § Completion.
+
 ## Cross-plan relationships
 
 - `plans/260816-1418-rn-three-dots-retarget` — **status `done`**. It shipped the
@@ -143,7 +152,8 @@ Phase 4 depends on 3 (needs the theme catalog) and 1 (reuses `useReduceMotion`).
       element; score + Back text hold ≥ 4.5:1 over the scene.
 - [ ] Backdrop cross-fades at score milestones; theme is reproducible from score alone
       and resets with the score. No timer, no fail state, one continuous board.
-- [ ] Title / HUD / settings read as intentional paper-craft.
+- [x] Title / HUD / settings read as intentional paper-craft. (Phase 5, done; on-device
+      look/feel sign-off still open — see ² above.)
 - [ ] Reduce Motion swaps every animation for a static/reduced variant.
 - [ ] Exactly one new dependency added (`rive-react-native`).
 - [ ] `npm run lint` + `npm run typecheck` + `npm test` green; new pure logic
