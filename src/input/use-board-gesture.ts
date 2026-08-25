@@ -30,8 +30,13 @@ export function useChainState(initialBoard: readonly number[]): ChainState {
   // Same reasoning as `useBoardAnimation`: each shared value keeps its
   // identity across renders, so memoising the object they are bundled into
   // (rather than returning a fresh literal every render) lets everything
-  // downstream that depends on this hook's return value actually memoise.
-  return useMemo(() => ({ chain, finger, board, isResolving, linkColor }), []);
+  // downstream that depends on this hook's return value actually memoise. The
+  // deps list the shared values; their identities are stable, so the array
+  // never changes and the memo still never recomputes.
+  return useMemo(
+    () => ({ chain, finger, board, isResolving, linkColor }),
+    [chain, finger, board, isResolving, linkColor],
+  );
 }
 
 type GestureOptions = {

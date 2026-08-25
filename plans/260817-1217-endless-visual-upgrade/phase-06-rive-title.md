@@ -1,7 +1,7 @@
 ---
 phase: 6
 title: 'Animated title via rive-react-native'
-status: pending
+status: done
 priority: P2
 effort: '1-1.5d'
 dependencies: [5]
@@ -81,10 +81,18 @@ mismatch" failure mode — treat a peer-dep warning naming `nitro-modules` as th
 
 ## Success Criteria
 
-- [ ] Title animates via Rive on device; Reduce Motion → static fallback.
-- [ ] Exactly one new dependency (`rive-react-native`), Expo-pinned; dev client rebuilt.
-- [ ] No Skia/Reanimated used for this meta-UI motion (bible §4 respected).
-- [ ] `lint` + `typecheck` + `test` green; no OTA-only assumption documented away.
+- [ ] Title animates via Rive on device. **OWNER-GATED, not done** — blocked on real
+      `.riv` art (a separate later rnd-department slice) plus the native dev-client
+      rebuild (`expo run:ios`). See Completion below.
+- [x] Reduce Motion → static fallback. **DONE** — `<RiveTitle>` renders the Phase 5
+      static lockup on Reduce Motion, on a native Rive `onError`, or when no real
+      `.riv` art is bundled yet (current state, via the `riveTitleSource()` null-guard).
+- [x] Exactly one new dependency (`rive-react-native` `^9.8.5`), Expo-pinned. **DONE**
+      — the dev-client rebuild itself is the separate open owner step (see Completion,
+      open item 2).
+- [x] No Skia/Reanimated used for this meta-UI motion (bible §4 respected). **DONE**.
+- [x] `lint` + `typecheck` + `test` green; no OTA-only assumption documented away.
+      **DONE** — native-rebuild requirement documented, not silently assumed OTA-only.
 
 ## Risk Assessment
 
@@ -101,3 +109,53 @@ mismatch" failure mode — treat a peer-dep warning naming `nitro-modules` as th
 - **No real `.riv` art yet.** Signal: placeholder looks unfinished. Response:
   placeholder state machine is explicitly acceptable for v1 (brainstorm); real art is a
   later rnd-department slice and does not block this wiring.
+
+## Completion (2026-08-25)
+
+**Shipped (wiring-only, user-approved scope — "Full wiring, iOS-scoped"):**
+`rive-react-native ^9.8.5` added via `npx expo install`; `metro.config.js` created
+(extends Expo default to bundle `.riv` as an asset); `src/render/rive-title.tsx`
+created — `<RiveTitle fallback={...}>` renders the Phase 5 static lockup when Reduce
+Motion is on, on a native Rive `onError` (avoids the default RN error crash screen), or
+when no real `.riv` art is bundled (`riveTitleSource()` returns `null` today, so the
+static lockup always renders); `src/app/index.tsx` modified — lockup extracted once,
+mounted as `<RiveTitle fallback={lockup} />`, all other wiring (`readScore` +
+`useFocusEffect`, the 4 nav links, score card) unchanged.
+
+**Dependency-choice outcome.** Legacy `rive-react-native` chosen over the Nitro
+successor `@rive-app/react-native`: the successor peers `react-native-nitro-modules
+"<0.36"`, which conflicts with this repo's pinned `^0.36.5` (required by
+`react-native-mmkv` v4 for score persistence). Legacy `rive-react-native` has zero
+nitro dependency, so it was correctly picked — the mmkv/nitro pin is untouched.
+Confirmed by `code-reviewer`: only `rive-react-native` added; skia 2.11.0 / expo
+~57.0.14 / react-native 0.86.2 / mmkv `^4.3.2` / nitro `^0.36.5` / reanimated 4.5.3 all
+unchanged.
+
+**Deliberate deviation from this phase file's literal text — no placeholder `.riv`.**
+The Architecture/Steps above call for a placeholder `assets/rive/title.riv`. That was
+intentionally NOT created: a fabricated/empty `.riv` is invalid and would hard-crash the
+native Rive runtime, and it violates the repo's no-fake-assets rule. Instead the
+`riveTitleSource()` null-guard renders the static fallback until real authored art
+lands — same user-visible result (static title, matches Phase 5) with no crash and no
+fake asset. `assets/rive/` stays absent for now; not a gap, a decision.
+
+**Two open owner-gated items — stay OPEN, not done:**
+
+1. **Title animates on device.** Blocked on real `.riv` art — a separate later
+   rnd-department slice. This round was explicitly scoped by the user as wiring-only,
+   "animates" deferred.
+2. **Native dev-client rebuild** (`expo run:ios`). The owner's device step; a native
+   module was added so OTA (`eas update`) alone will not pick it up.
+
+**Verification evidence (all green):** `npm run typecheck` clean; `npm run lint` 0
+errors (2 pre-existing warnings in untouched files `use-board-animation.ts` /
+`use-board-gesture.ts`); `npm test` 402/402 pass; `npm run audit:diff` OK; `npm run
+vendored:check` OK; `npm run coverage:diff` OK (no coverage impact — `rive-title.tsx` /
+`metro.config.js` are RN/native presentation, outside the Vitest include).
+`code-reviewer` subagent verdict: DONE, no blockers — dependency-pin safety, no
+`index.tsx` regression, correct Rive v9 API usage, patterns followed.
+
+**Outstanding gate:** same shape as Phase 5 — code-complete + all automated gates green
+
+- review DONE; the two owner-gated items above (real `.riv` art, on-device native
+  rebuild + animation sign-off) remain before this phase is fully closed end-to-end.

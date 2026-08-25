@@ -17,9 +17,14 @@ for what's actually built on `main` today.
   2×2-loop sweep, the ≥5-line sweep (see "Shipped bonus mechanic" below), deadlock reshuffle, a
   persisted score, no fail state. See `src/core/`, `src/render/`, `src/input/`, `src/effects/`,
   `src/meta/`.
-- **Journey (the timed, objective-driven mode described below) is designed here but not yet
-  implemented on `main`** — there is no `src/core/journey/` or `src/core/level/` yet. Its contract
-  (the level-script shape a loader will parse) is locked in `docs/level-script-schema.md`.
+- **Journey's core is implemented on `main`** (the timed, objective-driven mode described below):
+  `src/core/level/` (the level-script loader + `parseLevelScript`), `src/core/journey/` (journey
+  state), and `src/core/obstacles/` (caged dots, now layered) are committed and unit-tested; the
+  infinite variant **Voyage** (`src/core/voyage/`) has its pure-TS engine on `main` too. The
+  level-script contract is locked in `docs/level-script-schema.md`. What remains is **on-device
+  verification of the Skia render layers** (Voyage diorama/ribbon/boss; the layered-cage overlay +
+  first-cage teaching popup) — code-complete, not yet signed off on a device. Treat Journey/Voyage
+  as "engine-on-`main`, render pending on-device," not as fully shipped.
 - This doc is written for the whole concept (both modes, the full country/economy vision); read the
   two bullets above before treating anything below as already true of the running app.
 

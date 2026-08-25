@@ -80,8 +80,9 @@ export function useBoardAnimation(cellCount: number): BoardAnimation {
   // this hook — that is Reanimated's whole point. Wrapping them in a memoised
   // object (rather than a fresh literal every render) lets every downstream
   // useCallback/useMemo that depends on `anim` actually memoise, instead of
-  // rebuilding on every render for no reason. An empty dependency array is
-  // correct because none of these values ever change identity.
+  // rebuilding on every render for no reason. The deps list every shared value:
+  // because each identity is stable, the array never changes, so the memo still
+  // never recomputes — the same object holds across renders.
   return useMemo(
     () => ({
       offsetX,
@@ -98,7 +99,21 @@ export function useBoardAnimation(cellCount: number): BoardAnimation {
       bounce,
       highlight,
     }),
-    [],
+    [
+      offsetX,
+      offsetY,
+      moveT,
+      clearRank,
+      clearSpan,
+      clearT,
+      mergeRank,
+      mergeTarget,
+      mergeStep,
+      mergeTravel,
+      mergeT,
+      bounce,
+      highlight,
+    ],
   );
 }
 

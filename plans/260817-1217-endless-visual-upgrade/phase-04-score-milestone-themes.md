@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: 'Score-milestone theme index + cross-fade'
-status: pending
+status: dropped
 priority: P1
 effort: '1-1.5d'
 dependencies: [1, 3]

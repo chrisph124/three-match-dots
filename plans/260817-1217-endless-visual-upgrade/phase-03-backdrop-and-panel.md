@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: 'Dark receded city skyline + inset board panel + flat color dots'
-status: in-progress
+status: superseded
 priority: P1
 effort: '1.5-2d'
 dependencies: [2]

@@ -1,7 +1,7 @@
 ---
 phase: 5
 title: 'HUD / title / settings reskin (static)'
-status: pending
+status: done
 priority: P1
 effort: '1.5-2d'
 dependencies: []
@@ -76,14 +76,16 @@ the reset `Alert`.
 
 ## Success Criteria
 
-- [ ] Title / HUD / settings read as intentional paper-craft, matching the mockup
+- [x] Title / HUD / settings read as intentional paper-craft, matching the mockup
       direction.
-- [ ] Every existing behavior intact: play, score persist + focus-refresh, reset-with-
+- [x] Every existing behavior intact: play, score persist + focus-refresh, reset-with-
       confirm, navigation.
-- [ ] Gesture hit-testing re-verified on device **after** the board-frame chrome lands
-      — tap-start hits the visible dot with no offset.
-- [ ] Frozen dot palette untouched; new tokens are additive; each screen ~<200 lines.
-- [ ] No new dependency; no em-dashes in UI copy; `lint` + `typecheck` + `test` green.
+- [x] Gesture hit-testing re-verified on device **after** the board-frame chrome lands
+      — tap-start hits the visible dot with no offset. **VERIFIED on device 2026-08-25**
+      by the owner (code-level subtree preservation had been confirmed by review; the
+      real-device tap-hit + look/feel check now passes).
+- [x] Frozen dot palette untouched; new tokens are additive; each screen ~<200 lines.
+- [x] No new dependency; no em-dashes in UI copy; `lint` + `typecheck` + `test` green.
 
 ## Risk Assessment
 
@@ -98,3 +100,44 @@ the reset `Alert`.
 - **Parallel-edit collision with Phases 3/4** (both touch `game.tsx`). Signal: merge
   conflict. Response: land Phase 3 (canvas/backdrop) first, then this reskin; they own
   different regions of `game.tsx` but sequence to avoid churn.
+
+## Completion (2026-08-25)
+
+**Shipped:** "Night paper" direction — warm washi cards over the shipped **plain dark**
+`SCREEN_BACKGROUND` ground (shu 朱 primary/destructive accent, ai 藍 secondary accent).
+New `src/render/ui-theme.ts` (additive RN tokens, reuses palette's `SCREEN_BACKGROUND`/
+`TEXT_COLOR` as `night`/`nightInk`). Reskinned `src/app/index.tsx`, `src/app/settings.tsx`,
+`src/app/game.tsx` (HUD chrome only).
+
+**Direction reconciliation (important — resolves a plan self-contradiction).** This
+phase file's original text (Overview/Architecture above) assumes a _framed HUD over the
+Phase-3 city-skyline scene with an inset board panel_. Phase 3 was **superseded** by the
+plain-board pivot (`../260818-1656-endless-plain-board/plan.md`) before Phase 5 started —
+the shipped board is flat dots on the plain dark `SCREEN_BACKGROUND`, no panel, no
+skyline. Phase 5 was built against the ACTUAL shipped plain board, not the stale
+Overview text: the game HUD is a paper **chip** (SCORE label + tabular-nums value)
+floated over the plain dark ground — not a framed panel over a skyline. Treat "framed
+HUD" / "board framed to sit with the Phase 3 panel" in Overview/Architecture above as
+superseded by this note.
+
+**Scope correction:** `index.tsx` ships **4** nav links (Play / Journey / Voyage /
+Settings), not the 3 (Play/Journey/Settings) the Requirements/Architecture sections
+above list — Voyage shipped between this phase's authoring and its implementation.
+
+**Wiring preserved (verified):** `game.tsx` keeps `GestureDetector` → style-less `View`
+→ `BoardCanvas` byte-for-byte + `useGameState` score read/write; `index.tsx` keeps
+`readScore` + `useFocusEffect`; `settings.tsx` keeps `resetScore` behind the `Alert`
+confirm + Back link.
+
+**Verification evidence:** `npm run typecheck` clean; `npm run lint` 0 errors (2
+pre-existing warnings, untouched files); `npm test` 402/402 pass. No coverage impact —
+`ui-theme.ts` is RN/Skia presentation, outside the Vitest include. `code-reviewer`
+subagent verdict: DONE, all acceptance criteria PASS, hit-test subtree + wiring
+verifiably unchanged, frozen `DOT_COLORS`/`palette.ts` untouched.
+
+**Outstanding gate:** on-device sign-off (Implementation Step 5 above) is NOT yet done.
+Per repo DoD, RN/Skia "feel" is not Vitest-testable and must be verified on a real
+device — the user approved the LOOK via an HTML A/B preview only. Phase is
+code-complete + all automated gates green + review DONE; on-device tap-hit-test and
+visual sign-off remain the owner's open action before this phase can be called fully
+closed.

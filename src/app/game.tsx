@@ -10,15 +10,16 @@ import { readScore, writeScore } from '../meta/score-storage';
 import { useGameState } from '../meta/use-game-state';
 import { BoardCanvas } from '../render/board-canvas';
 import { makeLayout } from '../render/geometry';
-import { SCREEN_BACKGROUND, TEXT_COLOR } from '../render/palette';
+import { fontSize, labelTracking, radius, space, ui } from '../render/ui-theme';
 
 const CELL_COUNT = ENDLESS_CONFIG.rows * ENDLESS_CONFIG.cols;
 
 export default function GameScreen() {
   const { width } = useWindowDimensions();
   // Rendered like Journey: the board is a centered square floated on the plain
-  // dark SCREEN_BACKGROUND, sized to the screen width and capped so it stays a
-  // comfortable touch size on large screens. No backdrop and no inset panel — the
+  // dark ground (ui.night, the shipped board background), sized to the screen
+  // width and capped so it stays a comfortable touch size on large screens. No
+  // backdrop and no inset panel — the
   // canvas is sized exactly to the board, so the layout origin stays (0,0).
   const boardSize = Math.min(width - 32, 400);
 
@@ -50,7 +51,10 @@ export default function GameScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.score}>{game.score}</Text>
+      <View style={styles.chip}>
+        <Text style={styles.chipLabel}>SCORE</Text>
+        <Text style={styles.chipValue}>{game.score}</Text>
+      </View>
       <GestureDetector gesture={gesture}>
         {/* Keep this View style-less so it auto-sizes to the Canvas and the
             gesture's event.x/y stay in canvas-pixel space. With the layout origin
@@ -61,7 +65,7 @@ export default function GameScreen() {
           <BoardCanvas board={game.board} layout={layout} anim={anim} chainState={chainState} />
         </View>
       </GestureDetector>
-      <Link href="/" style={styles.link}>
+      <Link href="/" style={styles.back}>
         Back
       </Link>
     </View>
@@ -73,9 +77,42 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 24,
-    backgroundColor: SCREEN_BACKGROUND,
+    gap: space.xl,
+    backgroundColor: ui.night,
   },
-  score: { fontSize: 40, fontWeight: '700', color: TEXT_COLOR, fontVariant: ['tabular-nums'] },
-  link: { fontSize: 18, color: TEXT_COLOR },
+  // Vellum paper chip: a warm plate behind the score, floated over the dark board.
+  chip: {
+    alignItems: 'center',
+    minWidth: 128,
+    paddingHorizontal: space.xl,
+    paddingTop: 9,
+    paddingBottom: space.sm,
+    backgroundColor: ui.paper,
+    borderWidth: 1,
+    borderColor: ui.paperEdge,
+    borderRadius: radius.md,
+    shadowColor: ui.shadow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  chipLabel: {
+    fontSize: fontSize.label,
+    letterSpacing: labelTracking,
+    color: ui.inkSoft,
+    fontWeight: '600',
+  },
+  chipValue: {
+    fontSize: fontSize.hudScore,
+    fontWeight: '800',
+    color: ui.ink,
+    fontVariant: ['tabular-nums'],
+  },
+  back: {
+    fontSize: fontSize.link,
+    color: ui.nightInk,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.xl,
+  },
 });
