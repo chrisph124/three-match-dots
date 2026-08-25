@@ -40,6 +40,37 @@ Gesture Handler ↔ Worklets ↔ React Native ↔ React** (plus `react-native-mm
   single **review-only** `expo-native` PR (never auto-merged) and batches
   dev-tooling separately.
 
+### Held below the SDK head on purpose (Xcode floor)
+
+The local pin set is intentionally held at **expo `57.0.14`** (which resolves
+`expo-modules-jsi` to `57.0.4` + the [`abs()` shadow patch](../patches/)), **not**
+the newer `57.0.16` the SDK now heads to. Reason: SDK 57's `57.0.16` pulls
+`expo-modules-jsi` `57.0.5`, whose Swift/C++ interop (`SWIFT_RETURNS_RETAINED`
+on the RuntimeScheduler ctor) only compiles on **Xcode 26.4.1 / Swift 6.3**
+(maintainer-confirmed, expo/expo#47957). This dev machine runs **Xcode 26.2 /
+Swift 6.2.3**, below that floor, so `57.0.5` fails to build here while `57.0.4`
+builds cleanly.
+
+Consequences for maintainers:
+
+- **`expo install --check` will report expo "should update to 57.0.16" — that
+  drift is deliberate. Do NOT run `npx expo install --fix` until Xcode 26.4.1 is
+  installed**, or it re-pulls `jsi 57.0.5` and re-creates the build wall.
+- Holding a downgrade means restoring **both** `package.json` **and**
+  `package-lock.json` then `npm ci` — `~57.0.x` ranges resolve upward, so a bare
+  `npm install` silently defeats the pin.
+- When Xcode 26.4.1 lands: `npx expo install --fix`, delete the `abs()` patch,
+  purge `ios/Pods ios/Podfile.lock ios/build` + the jsi `apple/Products` cache,
+  rebuild → zero patches, fully SDK-aligned.
+
+**Why this matters (the incident):** Dependabot PR #16 bumped
+`react-native-worklets` `0.10.1 → 0.11.4` above the SDK-57 pin; the native
+`installUnpacker` asserts on the version-mismatched JS unpacker bundle → SIGABRT
+at launch. It merged despite the "never auto-merged" note above — that guard is
+documentation-only until an `ignore` rule for the `expo-native` group is added to
+`.github/dependabot.yml`. The fix was to revert the whole group to the SDK-57
+pins, not one package.
+
 ## `npm audit` — advisory-diff gate
 
 A raw `npm audit || true` always exits 0, so a genuinely new advisory just hides
