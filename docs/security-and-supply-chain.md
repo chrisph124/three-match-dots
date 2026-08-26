@@ -36,9 +36,18 @@ Gesture Handler ↔ Worklets ↔ React Native ↔ React** (plus `react-native-mm
   the SDK's tested versions.
 - **`npm audit fix --force` is forbidden.** Here it resolves to an Expo 53 / RN
   0.72 **downgrade** — a false "fix" that regresses the whole app.
-- [`.github/dependabot.yml`](../.github/dependabot.yml) groups these into a
-  single **review-only** `expo-native` PR (never auto-merged) and batches
-  dev-tooling separately.
+- [`.github/dependabot.yml`](../.github/dependabot.yml) **ignores every
+  `version-update` (major, minor, patch)** for the whole set (the SDK is the sole
+  version owner). Each entry lists `update-types` **explicitly** rather than a
+  bare `dependency-name`: GitHub applies `update-types` to version updates only
+  ("security updates will always be created regardless of the `update-types`
+  setting"), so this blocks version bumps while the **security-update channel
+  stays alive**. A bare-name ignore would have silenced security PRs too — it
+  ignores the dependency wholesale. The `expo-native` group is kept so those
+  security PRs still arrive as one review-only PR. Because GitHub's
+  ignore↔security interaction has misbehaved per-ecosystem
+  (dependabot-core#4027), confirm on this repo that a security advisory still
+  opens a PR for an ignored package. Dev-tooling is batched separately.
 
 ### Held below the SDK head on purpose (Xcode floor)
 
@@ -66,10 +75,10 @@ Consequences for maintainers:
 **Why this matters (the incident):** Dependabot PR #16 bumped
 `react-native-worklets` `0.10.1 → 0.11.4` above the SDK-57 pin; the native
 `installUnpacker` asserts on the version-mismatched JS unpacker bundle → SIGABRT
-at launch. It merged despite the "never auto-merged" note above — that guard is
-documentation-only until an `ignore` rule for the `expo-native` group is added to
-`.github/dependabot.yml`. The fix was to revert the whole group to the SDK-57
-pins, not one package.
+at launch. It merged despite the "never auto-merged" note — grouping alone never
+blocked a merge. The immediate fix reverted the whole group to the SDK-57 pins
+(not one package); the durable guard is the **version-update `ignore`** now in
+`.github/dependabot.yml`, so this bump can no longer be proposed.
 
 ## `npm audit` — advisory-diff gate
 
@@ -266,4 +275,6 @@ it changes nothing on `main` until the repo owner completes the setup below.
 - **Verify synthetically, not organically:** open a throwaway branch that bumps a
   single `dev-tooling` dev-dependency by a patch, confirm it auto-merges once
   `quality` + `secret-scan` are green, then confirm a `github-actions` /
-  `expo-native` PR is left untouched. Delete the throwaways after.
+  `expo-native` **version-update** PR is left untouched (a security-update PR on
+  the pin set may still appear — that is intended, per the `update-types` scoping
+  above). Delete the throwaways after.
