@@ -85,6 +85,12 @@ player's strongest move on the game's very first taught obstacle. Full reasoning
 Phases 1 and 2 are independent and may run in parallel. Phase 5 and 6 are on-device (not
 Vitest-testable) and gate on the Phase 3 caged-Map contract. Phases 1-4 are test-first.
 
+**Update (2026-08-26):** Build wall cleared — the app builds + launches crash-free on iPhone 16e and
+the render stack initializes. Phases 5 & 6 stay "on-device verify pending": the visible-cage overlay,
+chip/pop feedback, and the first-multi-layer-cage teaching popup still need the human visual walk
+(Voyage seeded ~L5 + japan-01), tracked in
+[`plans/reports/verification-260826-1407-on-device-render-signoff.md`](../reports/verification-260826-1407-on-device-render-signoff.md).
+
 ## Constraints (from the accepted brainstorm)
 
 - Keep `board-canvas.tsx` at origin (0,0) — cages draw in a **sibling** overlay layer (the
