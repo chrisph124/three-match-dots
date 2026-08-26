@@ -84,6 +84,14 @@ Because these layers are worklet/native, the **remaining gate is owner on-device
 visual appearance, raw frame rate, and persistence surviving a real app restart. The Voyage mode is
 wired into the title menu (`/voyage` → ladder → `/voyage-game`) and playable.
 
+**Update (2026-08-26):** Build wall cleared. The app now builds, installs, and launches
+**crash-free** on iPhone 16e after the worklets pin-back (SDK-57 0.10.1), and the title screen renders
+(Skia + Reanimated + worklets init clean; the persisted score survives via MMKV). This removes the
+blocker that prevented any on-device verification — the render stack is confirmed to initialize. The
+remaining gate is unchanged: the human visual/feel walk of the diorama/ribbon/boss/moves-fail
+criteria below, tracked in
+[`plans/reports/verification-260826-1407-on-device-render-signoff.md`](../reports/verification-260826-1407-on-device-render-signoff.md).
+
 ## Success Criteria
 
 - [x] `npm test` green, incl. new pure-core suites: schema v2 (accepts v1 + v2, rejects bad voyage
