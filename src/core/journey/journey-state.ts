@@ -1,6 +1,7 @@
 import { hasLegalMove } from '../deadlock';
 import { applyResolution, newGame } from '../game';
-import { cagedCells, levelToConfig, type LevelScript } from '../level/level-script';
+import { anchorCells, cagedCells, levelToConfig, type LevelScript } from '../level/level-script';
+import { buildAnchors, dropAnchors, remapAnchors } from '../obstacles/anchor';
 import { buildCaged, chipLayers, remapMoves } from '../obstacles/caged-dot';
 import { shuffleBoard } from '../shuffle';
 import type { CellIndex, CellMove, GameState, Resolution } from '../types';
@@ -21,6 +22,8 @@ export type JourneyState = {
   readonly timeRemainingMs: number;
   readonly objectives: readonly ObjectiveProgress[];
   readonly caged: ReadonlyMap<CellIndex, number>;
+  /** Cells holding a non-linkable weight (an anchor overlay, sibling to `caged`). */
+  readonly anchors: ReadonlySet<CellIndex>;
   readonly status: JourneyStatus;
 };
 
@@ -34,12 +37,14 @@ export function newJourney(level: LevelScript, sessionSeed: number): JourneyStat
   const seed = level.seed ?? sessionSeed;
   const game = newGame(levelToConfig(level), seed);
   const caged = buildCaged(cagedCells(level));
+  const anchors = buildAnchors(anchorCells(level));
   return {
     game,
     level,
     timeRemainingMs: level.timer?.startMs ?? 0,
-    objectives: initObjectives(level.objectives, caged.size),
+    objectives: initObjectives(level.objectives, caged.size, anchors.size),
     caged,
+    anchors,
     status: 'playing',
   };
 }
@@ -74,6 +79,11 @@ export function registerMistake(jstate: JourneyState): JourneyState {
  * settled overlay. The clear bonus is added once per accepted commit — never
  * scaled by cleared-cell count, or a single board-wide sweep (which frees 20+
  * dots at once) would make the timer meaningless.
+ *
+ * Anchors ride the same fold: the resolve seam already decided which weights an
+ * adjacent clear removed and echoed them on `resolution.expandedCleared`, so the
+ * fold just consumes that echo (never re-running adjacency) and remaps the
+ * survivors through gravity — mirroring the caged spine.
  */
 export function applyJourneyResolution(jstate: JourneyState, resolution: Resolution): JourneyState {
   if (jstate.status !== 'playing') {
@@ -81,7 +91,11 @@ export function applyJourneyResolution(jstate: JourneyState, resolution: Resolut
   }
   const game = applyResolution(jstate.game, resolution);
   const caged = remapMoves(chipLayers(jstate.caged, resolution), resolution.falls);
-  const objectives = foldObjectives(jstate.objectives, resolution, caged);
+  const anchors = remapAnchors(
+    dropAnchors(jstate.anchors, resolution.expandedCleared),
+    resolution.falls,
+  );
+  const objectives = foldObjectives(jstate.objectives, resolution, caged, anchors);
   const bonusMs = jstate.level.timer?.clearBonusMs ?? 0;
   const won = objectives.every((entry) => entry.done);
   return {
@@ -90,6 +104,7 @@ export function applyJourneyResolution(jstate: JourneyState, resolution: Resolut
     timeRemainingMs: jstate.timeRemainingMs + bonusMs,
     objectives,
     caged,
+    anchors,
     status: won ? 'won' : 'playing',
   };
 }
@@ -109,16 +124,22 @@ export type JourneySettlement = {
  * the render layer can slide dots to their new cells instead of teleporting;
  * the same array drives the caged-overlay remap, so board and cages can never
  * animate out of step.
+ *
+ * Anchors are weights that stay put: only the colours beneath the un-anchored
+ * cells shuffle. Both the deadlock check and the shuffle are anchor-aware (a
+ * reshuffle must leave a move that routes around the weights), and the overlay
+ * itself is carried through unchanged by the `...jstate` spread — never remapped
+ * through `shuffle.moves`.
  */
 export function settleJourney(jstate: JourneyState): JourneySettlement {
   if (jstate.status !== 'playing') {
     return { jstate, moves: [] };
   }
   const { config, board, score, rngState } = jstate.game;
-  if (hasLegalMove(board, config.rows, config.cols, config.minChain)) {
+  if (hasLegalMove(board, config.rows, config.cols, config.minChain, jstate.anchors)) {
     return { jstate, moves: [] };
   }
-  const shuffle = shuffleBoard(board, config, rngState);
+  const shuffle = shuffleBoard(board, config, rngState, jstate.anchors);
   return {
     jstate: {
       ...jstate,

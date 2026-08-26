@@ -11,6 +11,7 @@ import { useVoyageState } from '../meta/use-voyage-state';
 import { SLICE_LADDER_LENGTH, voyageLevelAt } from '../meta/voyage-ladder';
 import { recordLevelResult } from '../meta/voyage-progress-storage';
 import { hasSeenCageIntro, markCageIntroSeen } from '../meta/tutorial-flags';
+import { AnchorOverlayLayer } from '../render/anchor-overlay-layer';
 import { BoardCanvas } from '../render/board-canvas';
 import { CageIntroPopup } from '../render/cage-intro-popup';
 import { CageOverlayLayer } from '../render/cage-overlay-layer';
@@ -188,6 +189,7 @@ function VoyageRun({
               anim={anim}
               reduceMotion={reduceMotion}
             />
+            <AnchorOverlayLayer anchors={voyage.anchors} layout={layout} anim={anim} />
           </View>
         </GestureDetector>
       </BoardPanel>

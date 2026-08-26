@@ -9,8 +9,9 @@ import {
   type JourneyState,
 } from '../core/journey/journey-state';
 import { levelToConfig, type LevelScript } from '../core/level/level-script';
-import { resolveCagedChain } from '../core/resolve-caged-chain';
-import type { Board, ClearedCell, Resolution } from '../core/types';
+import { toMask } from '../core/obstacles/anchor';
+import { resolveAnchorChain } from '../core/resolve-anchor-chain';
+import type { Board, CellIndex, ClearedCell, Resolution } from '../core/types';
 import {
   FALL_MS,
   playClear,
@@ -55,6 +56,13 @@ export type JourneyClearEvent = {
 // writes lexically inside a hook body, so the mutation lives out here.
 function writeBoardMirror(chainState: ChainState, board: Board): void {
   chainState.board.value = [...board];
+}
+function writeAnchorMask(
+  chainState: ChainState,
+  anchors: ReadonlySet<CellIndex>,
+  cellCount: number,
+): void {
+  chainState.anchors.value = toMask(anchors, cellCount);
 }
 function unlock(chainState: ChainState): void {
   chainState.isResolving.value = 0;
@@ -112,8 +120,12 @@ export function useJourneyState({ level, layout, anim, chainState }: Options) {
     (next: JourneyState) => {
       advance(next);
       writeBoardMirror(chainState, next.game.board);
+      // Anchors only ever change here (a clear removed one, gravity moved one);
+      // settle preserves the set in place. Mirror them on the same cadence as
+      // the board so the worklet's link-suppression stays in step.
+      writeAnchorMask(chainState, next.anchors, cellCount);
     },
-    [advance, chainState],
+    [advance, chainState, cellCount],
   );
 
   // Seed the board mirror once with the real dealt board (chainState is built
@@ -125,7 +137,8 @@ export function useJourneyState({ level, layout, anim, chainState }: Options) {
     }
     seeded.current = true;
     writeBoardMirror(chainState, latest.current.game.board);
-  }, [chainState]);
+    writeAnchorMask(chainState, latest.current.anchors, cellCount);
+  }, [chainState, cellCount]);
 
   const settle = useCallback(() => {
     // Re-read the freshest state instead of trusting a snapshot captured when
@@ -177,10 +190,16 @@ export function useJourneyState({ level, layout, anim, chainState }: Options) {
 
   const commit = useCallback(
     (chain: number[]) => {
-      // Route through the shared caged wrapper: a multi-layer cage in the chain
-      // chips a layer instead of popping. A cage-free level yields an empty
-      // protected set ⇒ the byte-identical classic resolve.
-      const resolution = resolveCagedChain(latest.current.game, chain, latest.current.caged);
+      // Route through the shared obstacle bridge: a multi-layer cage in the chain
+      // chips a layer instead of popping, and any weight a cleared cell is 8-way
+      // adjacent to is removed in the same pass (echoed on `expandedCleared`). A
+      // level with neither yields empty overlays ⇒ the byte-identical classic resolve.
+      const resolution = resolveAnchorChain(
+        latest.current.game,
+        chain,
+        latest.current.caged,
+        latest.current.anchors,
+      );
       if (resolution === null) {
         // A wasted attempt costs time — and the penalty can itself end the run.
         const penalized = registerMistake(latest.current);
@@ -254,6 +273,9 @@ export function useJourneyState({ level, layout, anim, chainState }: Options) {
       // Live caged overlay (index → layers remaining) — the render layer reads it
       // to draw layer indicators and the teaching-popup trigger keys off it.
       caged: jstate.caged,
+      // Live anchor overlay (cells holding a weight) — the render layer reads it
+      // to draw the weights; it shrinks as adjacent clears remove them.
+      anchors: jstate.anchors,
       status: jstate.status,
       // The last committed clear (or null) — the render layer fires pops / chip
       // feedback off it; see JourneyClearEvent.
@@ -265,6 +287,7 @@ export function useJourneyState({ level, layout, anim, chainState }: Options) {
       jstate.timeRemainingMs,
       jstate.objectives,
       jstate.caged,
+      jstate.anchors,
       jstate.status,
       clearEvent,
       commit,

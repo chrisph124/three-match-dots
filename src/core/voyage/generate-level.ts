@@ -4,7 +4,7 @@ import { nextInt } from '../rng';
 import { ARCHETYPE_POOL, type ObjectiveKind } from './archetypes';
 import { biomeFor } from './biome-rotation';
 import { bossFor } from './boss';
-import { bottomAnchoredCages } from './cage-layout';
+import { bottomAnchoredCages, bottomAnchoredWeights } from './cage-layout';
 import { budget, spend } from './difficulty-budget';
 import { curve } from './difficulty-curve';
 import { episodeOneLevel, isEpisodeOne } from './episode-1';
@@ -75,10 +75,16 @@ function buildObjectives(
   if (kind === 'caged') {
     return [{ type: 'freeCaged' }];
   }
+  if (kind === 'anchors') {
+    return [{ type: 'clearAnchors' }];
+  }
   const count = clearCountFor(D);
   const first = nextInt(rngState, colors);
   if (kind === 'colorAndCaged') {
     return [{ type: 'clearColor', color: first.value, count }, { type: 'freeCaged' }];
+  }
+  if (kind === 'colorAndAnchors') {
+    return [{ type: 'clearColor', color: first.value, count }, { type: 'clearAnchors' }];
   }
   if (kind === 'twoColors') {
     // Pick a distinct second colour: offset 1..colors-1 from the first (mod colors).
@@ -111,7 +117,12 @@ function buildGenerated(index: number, paletteSize: number, attempt: number): Le
   );
 
   const needsCages = archetype.objective === 'caged' || archetype.objective === 'colorAndCaged';
-  const obstacleCount = needsCages ? Math.max(1, dials.obstacleCount) : dials.obstacleCount;
+  const needsAnchors =
+    archetype.objective === 'anchors' || archetype.objective === 'colorAndAnchors';
+  // A clearAnchors/freeCaged objective is unsatisfiable with zero obstacles (and
+  // the parser rejects it), so an obstacle archetype always seeds at least one.
+  const obstacleCount =
+    needsCages || needsAnchors ? Math.max(1, dials.obstacleCount) : dials.obstacleCount;
   const objectives = buildObjectives(archetype.objective, dials.colors, D, constraintPick.state);
   // Every cage on this generated (non-curated, non-boss) index takes the same
   // band depth — mid past Episode 1 — from the single band authority.
@@ -143,7 +154,9 @@ function buildGenerated(index: number, paletteSize: number, attempt: number): Le
         boss: false,
       },
       objectives,
-      obstacles: bottomAnchoredCages(obstacleCount, layerCounts, VOYAGE_COLS, VOYAGE_ROWS),
+      obstacles: needsAnchors
+        ? bottomAnchoredWeights(obstacleCount, VOYAGE_COLS, VOYAGE_ROWS)
+        : bottomAnchoredCages(obstacleCount, layerCounts, VOYAGE_COLS, VOYAGE_ROWS),
       designIntent: `voyage/${archetype.key}`,
     },
     paletteSize,

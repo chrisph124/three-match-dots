@@ -82,6 +82,22 @@ describe('signatureOf', () => {
         }),
       ).objective,
     ).toBe('colorAndCaged');
+    expect(
+      signatureOf(
+        voyageLevel({
+          objectives: [{ type: 'clearAnchors' }],
+          obstacles: [{ type: 'anchor', cell: { col: 0, row: 5 } }],
+        }),
+      ).objective,
+    ).toBe('anchors');
+    expect(
+      signatureOf(
+        voyageLevel({
+          objectives: [{ type: 'clearColor', color: 0, count: 8 }, { type: 'clearAnchors' }],
+          obstacles: [{ type: 'anchor', cell: { col: 0, row: 5 } }],
+        }),
+      ).objective,
+    ).toBe('colorAndAnchors');
   });
 });
 

@@ -1,6 +1,7 @@
 import { hasLegalMove } from '../deadlock';
 import { applyResolution, newGame } from '../game';
 import {
+  anchorCells,
   cagedCells,
   constraintOf,
   levelToConfig,
@@ -8,6 +9,7 @@ import {
   type LevelScript,
 } from '../level/level-script';
 import { foldObjectives, initObjectives, type ObjectiveProgress } from '../journey/objectives';
+import { buildAnchors, dropAnchors, remapAnchors } from '../obstacles/anchor';
 import { buildCaged, chipLayers, remapMoves } from '../obstacles/caged-dot';
 import { shuffleBoard } from '../shuffle';
 import type { CellIndex, CellMove, GameState, Resolution } from '../types';
@@ -36,6 +38,8 @@ export type VoyageState = {
   readonly budget: VoyageBudget;
   readonly objectives: readonly ObjectiveProgress[];
   readonly caged: ReadonlyMap<CellIndex, number>;
+  /** Cells holding a non-linkable weight (an anchor overlay, sibling to `caged`). */
+  readonly anchors: ReadonlySet<CellIndex>;
   readonly status: VoyageStatus;
 };
 
@@ -61,12 +65,14 @@ export function newVoyage(level: LevelScript, sessionSeed: number): VoyageState 
   const seed = level.seed ?? sessionSeed;
   const game = newGame(levelToConfig(level), seed);
   const caged = buildCaged(cagedCells(level));
+  const anchors = buildAnchors(anchorCells(level));
   return {
     game,
     level,
     budget: initBudget(constraintOf(level)),
-    objectives: initObjectives(level.objectives, caged.size),
+    objectives: initObjectives(level.objectives, caged.size, anchors.size),
     caged,
+    anchors,
     status: 'playing',
   };
 }
@@ -122,6 +128,10 @@ function spendOnClear(budget: VoyageBudget, constraint: Constraint): VoyageBudge
  * Win-before-loss: if every objective is `done`, the status is `won` regardless
  * of the remaining budget — a final move that both empties the last cage and
  * spends the last move is a win, never a loss.
+ *
+ * Anchors ride the same fold as in Journey: consume the seam's echo of removed
+ * weights (`resolution.expandedCleared`) and remap the survivors through gravity
+ * — never re-running adjacency here.
  */
 export function applyVoyageResolution(vstate: VoyageState, resolution: Resolution): VoyageState {
   if (vstate.status !== 'playing') {
@@ -129,11 +139,15 @@ export function applyVoyageResolution(vstate: VoyageState, resolution: Resolutio
   }
   const game = applyResolution(vstate.game, resolution);
   const caged = remapMoves(chipLayers(vstate.caged, resolution), resolution.falls);
-  const objectives = foldObjectives(vstate.objectives, resolution, caged);
+  const anchors = remapAnchors(
+    dropAnchors(vstate.anchors, resolution.expandedCleared),
+    resolution.falls,
+  );
+  const objectives = foldObjectives(vstate.objectives, resolution, caged, anchors);
   const won = objectives.every((entry) => entry.done);
   const budget = spendOnClear(vstate.budget, constraintOf(vstate.level));
   const status = statusAfterClear(won, budget);
-  return { game, level: vstate.level, budget, objectives, caged, status };
+  return { game, level: vstate.level, budget, objectives, caged, anchors, status };
 }
 
 /** Sets remaining time (floored at 0) and flips to `'lost'` when it hits zero. */
@@ -198,16 +212,20 @@ export type VoyageSettlement = {
  * `shuffleBoard` — and remaps the caged overlay through the shuffle's `moves`
  * so cages never desync from their dots. A board that already has a legal move
  * is returned unchanged with no moves.
+ *
+ * Anchors stay put (only un-anchored colours shuffle): both the deadlock check
+ * and the shuffle are anchor-aware, and the overlay is carried through unchanged
+ * by the `...vstate` spread — never remapped through `shuffle.moves`.
  */
 export function settleVoyage(vstate: VoyageState): VoyageSettlement {
   if (vstate.status !== 'playing') {
     return { vstate, moves: [] };
   }
   const { config, board, score, rngState } = vstate.game;
-  if (hasLegalMove(board, config.rows, config.cols, config.minChain)) {
+  if (hasLegalMove(board, config.rows, config.cols, config.minChain, vstate.anchors)) {
     return { vstate, moves: [] };
   }
-  const shuffle = shuffleBoard(board, config, rngState);
+  const shuffle = shuffleBoard(board, config, rngState, vstate.anchors);
   return {
     vstate: {
       ...vstate,

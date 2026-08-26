@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bottomAnchoredCages } from './cage-layout';
+import { bottomAnchoredCages, bottomAnchoredWeights } from './cage-layout';
 
 describe('bottomAnchoredCages', () => {
   it('anchors cages at the bottom row, filling left-to-right', () => {
@@ -31,5 +31,31 @@ describe('bottomAnchoredCages', () => {
     const cages = bottomAnchoredCages(2, [2, 3], 6, 6);
     expect(cages[0].layers).toBe(2);
     expect(cages[1].layers).toBe(3);
+  });
+});
+
+describe('bottomAnchoredWeights', () => {
+  it('anchors weights at the bottom row, filling left-to-right', () => {
+    const weights = bottomAnchoredWeights(3, 6, 6);
+    expect(weights).toEqual([
+      { type: 'anchor', cell: { col: 0, row: 5 } },
+      { type: 'anchor', cell: { col: 1, row: 5 } },
+      { type: 'anchor', cell: { col: 2, row: 5 } },
+    ]);
+  });
+
+  it('wraps to the row above once the floor row is full', () => {
+    const weights = bottomAnchoredWeights(8, 6, 6);
+    expect(weights[6].cell).toEqual({ col: 0, row: 4 });
+    expect(weights[7].cell).toEqual({ col: 1, row: 4 });
+  });
+
+  it('carries no layer depth (a weight is single-hit)', () => {
+    const weights = bottomAnchoredWeights(2, 6, 6);
+    expect(weights.every((w) => !('layers' in w))).toBe(true);
+  });
+
+  it('returns an empty layout for a zero count', () => {
+    expect(bottomAnchoredWeights(0, 6, 6)).toEqual([]);
   });
 });

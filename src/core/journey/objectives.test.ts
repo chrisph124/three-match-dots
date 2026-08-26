@@ -23,6 +23,7 @@ function cleared(spec: readonly (readonly [number, number])[]): ClearedCell[] {
 
 const clearRed: Objective = { type: 'clearColor', color: 1, count: 5 };
 const freeAll: Objective = { type: 'freeCaged' };
+const clearAllAnchors: Objective = { type: 'clearAnchors' };
 
 describe('initObjectives', () => {
   it('seeds clearColor with a count target and freeCaged with the cage count', () => {
@@ -34,6 +35,16 @@ describe('initObjectives', () => {
   it('marks a freeCaged objective done immediately when there are no cages', () => {
     const progress = initObjectives([freeAll], 0);
     expect(progress[0]).toEqual({ objective: freeAll, current: 0, target: 0, done: true });
+  });
+
+  it('seeds clearAnchors with the anchor count from the third argument', () => {
+    const progress = initObjectives([clearAllAnchors], 0, 2);
+    expect(progress[0]).toEqual({ objective: clearAllAnchors, current: 0, target: 2, done: false });
+  });
+
+  it('defaults the anchor count to 0 (byte-identical pre-anchor call) ⇒ done immediately', () => {
+    const progress = initObjectives([clearAllAnchors], 0);
+    expect(progress[0]).toEqual({ objective: clearAllAnchors, current: 0, target: 0, done: true });
   });
 });
 
@@ -117,9 +128,36 @@ describe('foldObjectives — freeCaged', () => {
   });
 });
 
+describe('foldObjectives — clearAnchors', () => {
+  it('tracks removed anchors as initial-count minus remaining, done at zero remaining', () => {
+    let progress = initObjectives([clearAllAnchors], 0, 3);
+
+    progress = foldObjectives(progress, res([]), new Map(), new Set([10, 22]));
+    expect(progress[0].current).toBe(1); // 3 - 2 remaining
+    expect(progress[0].done).toBe(false);
+
+    progress = foldObjectives(progress, res([]), new Map(), new Set());
+    expect(progress[0].current).toBe(3);
+    expect(progress[0].done).toBe(true);
+  });
+
+  it('reads the anchor overlay, not the caged overlay (the two are independent)', () => {
+    // A stray caged entry must NOT satisfy a clearAnchors objective, and vice
+    // versa — each objective drains only its own overlay.
+    const progress = foldObjectives(
+      initObjectives([clearAllAnchors], 0, 1),
+      res([]),
+      new Map([[5, 1]]), // a cage still present — irrelevant to clearAnchors
+      new Set(), // no anchors remain
+    );
+    expect(progress[0].current).toBe(1);
+    expect(progress[0].done).toBe(true);
+  });
+});
+
 describe('foldObjectives — mixed', () => {
   it('advances each objective independently in one fold', () => {
-    let progress = initObjectives([clearRed, freeAll], 2);
+    let progress = initObjectives([clearRed, freeAll, clearAllAnchors], 2, 2);
     progress = foldObjectives(
       progress,
       res(
@@ -129,9 +167,11 @@ describe('foldObjectives — mixed', () => {
         ]),
       ),
       new Map([[22, 1]]),
+      new Set([30]),
     );
     expect(progress[0].current).toBe(2); // two red cleared
     expect(progress[1].current).toBe(1); // one of two cages freed
+    expect(progress[2].current).toBe(1); // one of two anchors removed
     expect(progress.every((p) => p.done)).toBe(false);
   });
 

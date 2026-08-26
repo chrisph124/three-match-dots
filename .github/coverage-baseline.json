@@ -1,10 +1,10 @@
 {
   "epsilon": 0.5,
   "total": {
-    "statements": 95.22,
-    "branches": 95.29,
-    "functions": 98.27,
-    "lines": 95.43
+    "statements": 97.43,
+    "branches": 95.92,
+    "functions": 99.03,
+    "lines": 97.44
   },
   "files": {
     "src/core/config.ts": {
@@ -50,10 +50,10 @@
       "lines": 100
     },
     "src/core/journey/journey-state.ts": {
-      "statements": 93.33,
+      "statements": 93.75,
       "branches": 77.27,
       "functions": 100,
-      "lines": 93.1
+      "lines": 93.54
     },
     "src/core/journey/objectives.ts": {
       "statements": 100,
@@ -63,11 +63,29 @@
     },
     "src/core/level/level-script.ts": {
       "statements": 100,
-      "branches": 96.66,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/obstacles/anchor.ts": {
+      "statements": 100,
+      "branches": 100,
       "functions": 100,
       "lines": 100
     },
     "src/core/obstacles/caged-dot.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/resolve-anchor-chain.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/resolve-caged-chain.ts": {
       "statements": 100,
       "branches": 100,
       "functions": 100,
@@ -98,10 +116,10 @@
       "lines": 100
     },
     "src/core/resolve/resolve-chain.ts": {
-      "statements": 97.05,
-      "branches": 97.14,
+      "statements": 97.61,
+      "branches": 98,
       "functions": 100,
-      "lines": 96.96
+      "lines": 97.36
     },
     "src/core/resolve/scoring.ts": {
       "statements": 100,
@@ -116,14 +134,98 @@
       "lines": 100
     },
     "src/core/shuffle.ts": {
-      "statements": 71.92,
-      "branches": 75,
-      "functions": 75,
-      "lines": 72.54
+      "statements": 72.46,
+      "branches": 76.47,
+      "functions": 80,
+      "lines": 72.58
     },
     "src/core/types.ts": {
       "statements": 100,
       "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/voyage/archetypes.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/voyage/biome-rotation.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/voyage/boss.ts": {
+      "statements": 96.96,
+      "branches": 75,
+      "functions": 100,
+      "lines": 96.55
+    },
+    "src/core/voyage/cage-layout.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/voyage/difficulty-budget.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/voyage/difficulty-curve.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/voyage/enumerate-moves.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/voyage/episode-1.ts": {
+      "statements": 93.33,
+      "branches": 87.5,
+      "functions": 100,
+      "lines": 92.85
+    },
+    "src/core/voyage/generate-level.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/voyage/level-signature.ts": {
+      "statements": 100,
+      "branches": 96.66,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/voyage/solver.ts": {
+      "statements": 96.06,
+      "branches": 90,
+      "functions": 100,
+      "lines": 95.86
+    },
+    "src/core/voyage/voyage-config.ts": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "src/core/voyage/voyage-state.ts": {
+      "statements": 98.14,
+      "branches": 89.47,
+      "functions": 100,
+      "lines": 98.11
+    },
+    "src/meta/voyage-progress-codec.ts": {
+      "statements": 100,
+      "branches": 96.55,
       "functions": 100,
       "lines": 100
     },
@@ -138,6 +240,12 @@
       "branches": 100,
       "functions": 100,
       "lines": 100
+    },
+    "src/render/voyage/contrast-tokens.ts": {
+      "statements": 94.73,
+      "branches": 75,
+      "functions": 80,
+      "lines": 94.73
     }
   }
 }

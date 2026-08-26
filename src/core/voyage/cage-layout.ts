@@ -1,4 +1,4 @@
-import type { Obstacle } from '../level/level-script';
+import type { AnchorObstacle, CagedDotObstacle } from '../level/level-script';
 
 /**
  * Bottom-anchored cage placement. Caged dots ride gravity, so a cage that is
@@ -20,8 +20,8 @@ export function bottomAnchoredCages(
   layerCounts: readonly number[],
   cols: number,
   rows: number,
-): Obstacle[] {
-  const cages: Obstacle[] = [];
+): CagedDotObstacle[] {
+  const cages: CagedDotObstacle[] = [];
   for (let k = 0; k < count; k += 1) {
     const row = rows - 1 - Math.floor(k / cols);
     const col = k % cols;
@@ -29,4 +29,22 @@ export function bottomAnchoredCages(
     cages.push({ type: 'cagedDot', cell: { col, row }, ...(layers > 1 ? { layers } : {}) });
   }
   return cages;
+}
+
+/**
+ * Bottom-anchored weight placement — the anchor sibling of `bottomAnchoredCages`.
+ * Weights also ride gravity, so a cluster starts at the board floor and fills
+ * upward, left to right, on distinct cells (each `k` maps to a unique `(row,
+ * col)`, so the placement never trips the schema's duplicate-cell guard as long
+ * as `count ≤ rows × cols`). A weight carries no layer depth, so the shape is a
+ * plain `{ type: 'anchor', cell }`. Pure TS (no RN/Skia).
+ */
+export function bottomAnchoredWeights(count: number, cols: number, rows: number): AnchorObstacle[] {
+  const weights: AnchorObstacle[] = [];
+  for (let k = 0; k < count; k += 1) {
+    const row = rows - 1 - Math.floor(k / cols);
+    const col = k % cols;
+    weights.push({ type: 'anchor', cell: { col, row } });
+  }
+  return weights;
 }

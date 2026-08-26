@@ -1,5 +1,5 @@
 import { areAdjacent } from '../hot/adjacency';
-import type { Board, CellIndex, Chain, GameState, Resolution } from '../types';
+import type { Board, CellIndex, Chain, ClearedCell, GameState, Resolution } from '../types';
 import { EMPTY } from '../types';
 import { classifyChain } from './classify-chain';
 import { collectCleared } from './collect-cleared';
@@ -39,6 +39,19 @@ function isCommittable(board: Board, chain: Chain, cols: number, minChain: numbe
 const EMPTY_PROTECTED: ReadonlySet<CellIndex> = new Set();
 
 /**
+ * A generic, mechanic-agnostic seam let into the resolution pipeline:
+ * - `skipCollect`: cells a colour-sweep must NOT collect (kept despite the match).
+ * - `expandCleared`: given the scored `cleared` set, returns extra cell indices to
+ *   empty in the SAME pass — they fall and refill with `cleared` but never score.
+ * Both optional; omitting the seam is byte-identical to the classic resolve. The
+ * anchor bridge supplies both; the core never learns the word "anchor".
+ */
+type ResolveSeam = {
+  readonly skipCollect?: ReadonlySet<CellIndex>;
+  readonly expandCleared?: (cleared: readonly ClearedCell[]) => readonly CellIndex[];
+};
+
+/**
  * classify -> collect -> gravity -> refill -> score.
  * Returns null when the chain cannot be committed; the input layer treats
  * null as a cancel. Nothing here throws.
@@ -55,6 +68,7 @@ export function resolveChain(
   state: GameState,
   chain: Chain,
   protectedCells: ReadonlySet<CellIndex> = EMPTY_PROTECTED,
+  seam?: ResolveSeam,
 ): Resolution | null {
   const { board, config } = state;
   const { rows, cols } = config;
@@ -68,12 +82,17 @@ export function resolveChain(
   // Classification ran on the full chain above; only the *removed* set is split.
   // Protecting a cell that was never collected is a no-op, so the overlay can
   // pass its protected set unconditionally without predicting collect/classify.
-  const collected = collectCleared(board, chain, kind);
+  const collected = collectCleared(board, chain, kind, seam?.skipCollect);
   const cleared =
     protectedCells.size === 0 ? collected : collected.filter((c) => !protectedCells.has(c.index));
   const protectedHits =
     protectedCells.size === 0 ? undefined : collected.filter((c) => protectedCells.has(c.index));
-  const settled = applyGravity(board, cleared, rows, cols);
+  // The seam may empty extra cells (never scored, never in `cleared`); they join
+  // gravity by index only. `skipCollect` keeps them out of `cleared`, so the two
+  // sets are disjoint and no cell is punched twice.
+  const expanded = seam?.expandCleared ? seam.expandCleared(cleared) : [];
+  const emptied = expanded.length ? [...cleared, ...expanded.map((index) => ({ index }))] : cleared;
+  const settled = applyGravity(board, emptied, rows, cols);
 
   // Combo heat. Off unless the config sets heatCap > 0 (only ENDLESS_CONFIG does),
   // so DEFAULT_CONFIG and every Journey config stay byte-identical: nextHeat is
@@ -118,5 +137,6 @@ export function resolveChain(
     rngState: filled.rngState,
     ...(heatEnabled ? { heat: nextHeat, doubleSweep } : {}),
     ...(protectedHits && protectedHits.length ? { protectedHits } : {}),
+    ...(expanded.length ? { expandedCleared: expanded } : {}),
   };
 }

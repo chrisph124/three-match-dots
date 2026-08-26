@@ -84,3 +84,40 @@ describe('shuffleBoard', () => {
     expect(result.board).toHaveLength(9);
   });
 });
+
+describe('shuffleBoard — anchors', () => {
+  it('accepts only a permutation whose legal move avoids the anchors', () => {
+    const { board, rows, cols } = parseBoard(DEADLOCKED_6X6);
+    const anchors = new Set([0, 7, 14]);
+    const result = shuffleBoard(board, configFor(rows, cols), 2026, anchors);
+    // The gate the shuffle satisfies is anchor-aware legality, not bare legality.
+    expect(hasLegalMove(result.board, rows, cols, DEFAULT_CONFIG.minChain, anchors)).toBe(true);
+    expect(tally(result.board)).toEqual(tally(board)); // still a permutation
+  });
+
+  it('keeps the colour beneath each anchor fixed (the weight pins its dot)', () => {
+    const { board, rows, cols } = parseBoard(DEADLOCKED_6X6);
+    const anchors = new Set([0, 7, 14]);
+    const result = shuffleBoard(board, configFor(rows, cols), 2026, anchors);
+    for (const cell of anchors) {
+      expect(result.board[cell]).toBe(board[cell]);
+    }
+  });
+
+  it('never slides a dot into or out of an anchored cell', () => {
+    const { board, rows, cols } = parseBoard(DEADLOCKED_6X6);
+    const anchors = new Set([0, 7, 14]);
+    const { moves } = shuffleBoard(board, configFor(rows, cols), 2026, anchors);
+    for (const move of moves) {
+      expect(anchors.has(move.from)).toBe(false);
+      expect(anchors.has(move.to)).toBe(false);
+    }
+  });
+
+  it('is byte-identical to passing no set when the anchor set is empty', () => {
+    const { board, rows, cols } = parseBoard(DEADLOCKED_6X6);
+    expect(shuffleBoard(board, configFor(rows, cols), 42, new Set())).toEqual(
+      shuffleBoard(board, configFor(rows, cols), 42),
+    );
+  });
+});

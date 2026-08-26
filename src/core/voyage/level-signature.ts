@@ -15,7 +15,8 @@ import type { Constraint, LevelScript } from '../level/level-script';
 export type ObstacleBucket = 'none' | 'few' | 'many';
 
 /** The objective classes, mirrored from the archetype objective templates. */
-export type ObjectiveClass = 'color' | 'twoColors' | 'caged' | 'colorAndCaged';
+export type ObjectiveClass =
+  'color' | 'twoColors' | 'caged' | 'colorAndCaged' | 'anchors' | 'colorAndAnchors';
 
 export type Signature = {
   readonly constraint: Constraint['type'];
@@ -39,11 +40,15 @@ function bucketObstacles(count: number): ObstacleBucket {
 /** Classifies a level's objectives into one signature objective class. */
 function classifyObjective(level: LevelScript): ObjectiveClass {
   const hasCaged = level.objectives.some((objective) => objective.type === 'freeCaged');
+  const hasAnchors = level.objectives.some((objective) => objective.type === 'clearAnchors');
   const colorTargets = level.objectives.filter(
     (objective) => objective.type === 'clearColor',
   ).length;
   if (hasCaged) {
     return colorTargets > 0 ? 'colorAndCaged' : 'caged';
+  }
+  if (hasAnchors) {
+    return colorTargets > 0 ? 'colorAndAnchors' : 'anchors';
   }
   return colorTargets >= 2 ? 'twoColors' : 'color';
 }

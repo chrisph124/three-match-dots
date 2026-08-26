@@ -1,35 +1,67 @@
 import { hasLegalMove } from './deadlock';
 import { nextInt } from './rng';
-import type { Board, CellMove, Color, GameConfig } from './types';
+import type { Board, CellIndex, CellMove, Color, GameConfig } from './types';
 
 /** Enough attempts that exhausting them is a bug, few enough to never hang. */
 const MAX_ATTEMPTS = 100;
 
+/** A shared, never-mutated empty anchor set: the Endless default path. */
+const NO_ANCHORS: ReadonlySet<CellIndex> = new Set();
+
+/** The un-anchored cell indices, in order — the only cells a shuffle may move. */
+function freeCells(count: number, anchors: ReadonlySet<CellIndex>): number[] {
+  const free: number[] = [];
+  for (let i = 0; i < count; i++) {
+    if (!anchors.has(i)) {
+      free.push(i);
+    }
+  }
+  return free;
+}
+
+/**
+ * Fisher-Yates over the un-anchored positions only (`free`): a weight pins both
+ * itself and the dot beneath it, so an anchored cell keeps its colour. With
+ * `free` = every cell (no anchors) this draws the same rng sequence and makes the
+ * same swaps as a plain full-board shuffle — byte-identical to the pre-anchor path.
+ */
 function shuffled(
   colors: readonly Color[],
   rngState: number,
+  free: readonly number[],
 ): { colors: Color[]; rngState: number } {
   const next = [...colors];
   let state = rngState;
-  for (let i = next.length - 1; i > 0; i--) {
-    const step = nextInt(state, i + 1);
+  for (let k = free.length - 1; k > 0; k--) {
+    const step = nextInt(state, k + 1);
     state = step.state;
-    const j = step.value;
-    const swap = next[i];
-    next[i] = next[j];
-    next[j] = swap;
+    const a = free[k];
+    const b = free[step.value];
+    const swap = next[a];
+    next[a] = next[b];
+    next[b] = swap;
   }
   return { colors: next, rngState: state };
 }
 
+/**
+ * Deals a fresh colour for every un-anchored cell while an anchored cell keeps
+ * the colour it already held (the weight pins it). With no anchors this deals
+ * for every cell in order — byte-identical to the pre-anchor fallback.
+ */
 function dealt(
-  count: number,
+  board: Board,
   colors: number,
   rngState: number,
+  anchors: ReadonlySet<CellIndex>,
 ): { colors: Color[]; rngState: number } {
   const next: Color[] = [];
   let state = rngState;
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < board.length; i++) {
+    if (anchors.has(i)) {
+      next.push(board[i]);
+      continue;
+    }
     const step = nextInt(state, colors);
     state = step.state;
     next.push(step.value);
@@ -47,21 +79,29 @@ function dealt(
  * that used to sit there; since a permutation has many valid pairings, the
  * pairing chosen is the greedy one that keeps as many dots in place as
  * possible.
+ *
+ * `anchors` are weights fixed in place: they do not scatter (only the colours
+ * beneath the un-anchored cells permute), and the accepted board must have a
+ * legal move that routes AROUND them — so legality is gated by the anchor-aware
+ * `hasLegalMove`. An empty set (the Endless default) reproduces the old shuffle
+ * byte-for-byte.
  */
 export function shuffleBoard(
   board: Board,
   config: GameConfig,
   rngState: number,
+  anchors: ReadonlySet<CellIndex> = NO_ANCHORS,
 ): { board: Color[]; moves: CellMove[]; rngState: number } {
   const { rows, cols, minChain } = config;
   let state = rngState;
   let next: Color[] = [...board];
+  const free = freeCells(board.length, anchors);
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const result = shuffled(board, state);
+    const result = shuffled(board, state, free);
     state = result.rngState;
     next = result.colors;
-    if (hasLegalMove(next, rows, cols, minChain)) {
+    if (hasLegalMove(next, rows, cols, minChain, anchors)) {
       return { board: next, moves: pairMoves(board, next), rngState: state };
     }
   }
@@ -77,10 +117,10 @@ export function shuffleBoard(
   // exhausts MAX_ATTEMPTS, the last deal is returned: full, valid, but not provably
   // legal (in practice this is a defensive net that practice cannot reach).
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const result = dealt(board.length, config.colors, state);
+    const result = dealt(board, config.colors, state, anchors);
     state = result.rngState;
     next = result.colors;
-    if (hasLegalMove(next, rows, cols, minChain)) {
+    if (hasLegalMove(next, rows, cols, minChain, anchors)) {
       break;
     }
   }

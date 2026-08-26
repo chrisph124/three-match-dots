@@ -69,11 +69,11 @@ describe('generateLadder', () => {
     expect(report.worst).toBeLessThan(1);
 
     // The ≥40%-different rule holds for all but a small, *counted* shortfall.
-    // With 6 archetypes and a window of 8, some window must repeat an archetype
-    // (pigeonhole); once difficulty plateaus that repeat can differ in only the
-    // obstacle/constraint fields. The Phase-4 variety plan sanctions accepting
-    // the least-similar candidate and counting the shortfall (no silent cap);
-    // this asserts it stays within the documented ceiling.
+    // With 8 archetypes and a window of 8, a window can still repeat an archetype
+    // (the weighted pool draws unevenly); once difficulty plateaus that repeat can
+    // differ in only the obstacle/constraint fields. The variety plan sanctions
+    // accepting the least-similar candidate and counting the shortfall (no silent
+    // cap); this asserts it stays within the documented ceiling.
     const rate = report.shortfall / report.windowPairs;
     expect(rate).toBeLessThanOrEqual(VARIETY_MAX_SHORTFALL_RATE);
   });

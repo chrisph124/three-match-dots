@@ -97,6 +97,14 @@ export type Resolution = {
    * the core never learns why a cell is protected (see resolve-chain.ts).
    */
   readonly protectedHits?: readonly ClearedCell[];
+  /**
+   * Extra cells that a caller's `expandCleared` seam emptied on top of `cleared`
+   * — removed in the SAME resolution but never part of the chain/sweep and never
+   * scored. Plain indices (the render layer pairs its own effect to them). Absent
+   * when empty ⇒ byte-identical shape for every default caller (mirrors
+   * `protectedHits`). Mechanic-agnostic: the core never learns what these were.
+   */
+  readonly expandedCleared?: readonly CellIndex[];
 };
 
 export type GameState = {

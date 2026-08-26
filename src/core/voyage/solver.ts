@@ -1,7 +1,8 @@
 import { constraintOf, type Constraint, type LevelScript } from '../level/level-script';
 import type { ObjectiveProgress } from '../journey/objectives';
+import { removeAdjacent } from '../obstacles/anchor';
 import { chipLayersInner, protectedOf } from '../obstacles/caged-dot';
-import { resolveChain } from '../resolve/resolve-chain';
+import { resolveAnchorChain } from '../resolve-anchor-chain';
 import type { Board, CellIndex } from '../types';
 import { enumerateMoves, type Move } from './enumerate-moves';
 import {
@@ -97,8 +98,28 @@ export function cageMoveEffect(
 }
 
 /**
+ * How many weights a move removes: the count of anchors 8-way adjacent to a cell
+ * this move actually clears, decided by the SAME `removeAdjacent` rule the runtime
+ * bridge (`resolve-anchor-chain.ts`) applies — one rule, two callers, so the
+ * solver's `clearAnchors` credit can never diverge from the hook's removal. `pops`
+ * already excludes anchors (a weight never pops), so this reads as "an adjacent
+ * clear removes it". Empty anchor set ⇒ 0, the classic-play fast path.
+ */
+export function anchorMoveEffect(
+  anchors: ReadonlySet<CellIndex>,
+  pops: readonly CellIndex[],
+  cols: number,
+): number {
+  if (anchors.size === 0) {
+    return 0;
+  }
+  return removeAdjacent(anchors, pops, cols).removed.length;
+}
+
+/**
  * How much a move advances one unmet objective. `clearColor` counts only true pops
- * (chipped cages excluded, matching `foldObjectives`); `freeCaged` credits every
+ * (chipped cages excluded, matching `foldObjectives`); `clearAnchors` counts the
+ * weights this move removes (clamped to those remaining); `freeCaged` credits every
  * layer removed this move — a heuristic that steers the greedy policy, distinct
  * from the win check, which frees a cage only when its last layer falls.
  */
@@ -107,12 +128,16 @@ export function objectiveGain(
   moveColor: number,
   pops: readonly CellIndex[],
   layersFreed: number,
+  anchorsRemoved: number = 0,
 ): number {
   if (entry.objective.type === 'clearColor') {
     if (entry.objective.color !== moveColor) {
       return 0;
     }
     return Math.min(entry.target - entry.current, pops.length);
+  }
+  if (entry.objective.type === 'clearAnchors') {
+    return Math.min(entry.target - entry.current, anchorsRemoved);
   }
   return layersFreed;
 }
@@ -128,15 +153,21 @@ type Scored = {
 
 /** Scores a move: objective advancement first, then its churn (cells cleared). */
 function scoreMove(move: Move, vstate: VoyageState): Scored {
-  const { board } = vstate.game;
+  const { board, config } = vstate.game;
   const color = board[move.chain[0]];
   const isSweep = move.kind !== 'plain';
-  const touched = isSweep ? cellsOfColor(board, color) : Array.from(new Set(move.chain));
+  const swept = isSweep ? cellsOfColor(board, color) : Array.from(new Set(move.chain));
+  // A weight is never collected by a same-colour sweep (the runtime's skipCollect),
+  // so drop any anchored cell before counting pops — keeping the heuristic's pop
+  // count and adjacency set equal to what the resolve actually clears. (A plain
+  // chain never contains an anchor, so this filter is a no-op there.)
+  const touched = swept.filter((cell) => !vstate.anchors.has(cell));
   const { pops, layersFreed } = cageMoveEffect(vstate.caged, touched);
+  const anchorsRemoved = anchorMoveEffect(vstate.anchors, pops, config.cols);
   let adv = 0;
   for (const entry of vstate.objectives) {
     if (!entry.done) {
-      adv += objectiveGain(entry, color, pops, layersFreed);
+      adv += objectiveGain(entry, color, pops, layersFreed, anchorsRemoved);
     }
   }
   return { move, adv, isSweep, clearedCount: pops.length, firstCell: move.chain[0] };
@@ -180,14 +211,15 @@ function stepOnce(vstate: VoyageState, tickClock: boolean): StepOutcome {
   if (settled.status !== 'playing') {
     return { vstate: settled, committed: false, halted: true };
   }
-  const moves = enumerateMoves(settled.game.board, settled.game.config);
+  const moves = enumerateMoves(settled.game.board, settled.game.config, settled.anchors);
   if (moves.length === 0) {
     return { vstate: settled, committed: false, halted: true };
   }
-  const resolution = resolveChain(
+  const resolution = resolveAnchorChain(
     settled.game,
     pickBest(moves, settled).chain,
-    protectedOf(settled.caged),
+    settled.caged,
+    settled.anchors,
   );
   if (resolution === null) {
     return { vstate: settled, committed: false, halted: true };

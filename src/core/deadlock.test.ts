@@ -68,3 +68,28 @@ describe('hasLegalMove', () => {
     expect(check('GGR/RBB/GRG')).toBe(false);
   });
 });
+
+describe('hasLegalMove — anchors', () => {
+  // 'RRR/GBG' has exactly one legal chain: the top R triple 0-1-2. The two Gs
+  // (3, 5) are not adjacent, so no other 3-path exists.
+  const parse = (art: string) => parseBoard(art);
+
+  it('treats an anchored cell as non-linkable, breaking the sole legal chain', () => {
+    const { board, rows, cols } = parse('RRR/GBG');
+    expect(hasLegalMove(board, rows, cols, 3)).toBe(true); // 0-1-2 is legal
+    // Anchoring the middle OR an end of the only triple leaves no legal move.
+    expect(hasLegalMove(board, rows, cols, 3, new Set([1]))).toBe(false); // mid-path
+    expect(hasLegalMove(board, rows, cols, 3, new Set([0]))).toBe(false); // start cell
+  });
+
+  it('is byte-identical to passing no set when the anchor set is empty', () => {
+    const { board, rows, cols } = parse('RRR/GBG');
+    expect(hasLegalMove(board, rows, cols, 3, new Set())).toBe(hasLegalMove(board, rows, cols, 3));
+  });
+
+  it('ignores an anchor that is not part of any chain', () => {
+    const { board, rows, cols } = parse('RRR/GBG');
+    // Cell 4 (the lone B) belongs to no triple; anchoring it leaves 0-1-2 legal.
+    expect(hasLegalMove(board, rows, cols, 3, new Set([4]))).toBe(true);
+  });
+});

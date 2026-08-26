@@ -21,8 +21,18 @@ import type { Board, CellIndex, ChainKind, GameConfig } from '../types';
  * otherwise the solver would falsely halt on a live board. (A same-colour
  * *component* of `minChain` cells is not enough: a 4-cell star has no 4-chain.)
  *
+ * Anchors (non-linkable weights) are skipped by the SAME rule `hasLegalMove`
+ * uses: a weight is never a chain start, a chain step, or a member of a sweep.
+ * The path helpers pre-mark anchors as visited (so the DFS never enters one) and
+ * the line/loop detectors reject any shape that covers one — keeping the
+ * enumerator≡deadlock agreement intact on anchor boards. An empty set (the
+ * Endless / anchor-free default) is byte-identical to the pre-anchor enumerator.
+ *
  * Pure TS over the `src/core/hot/` grid math — no RN/Skia.
  */
+
+/** A shared, never-mutated empty anchor set: the anchor-free default path. */
+const NO_ANCHORS: ReadonlySet<CellIndex> = new Set();
 
 /** A committable move: an ordered chain plus the kind `resolveChain` will assign. */
 export type Move = {
@@ -37,6 +47,15 @@ const LINE_DIRS: readonly (readonly [number, number])[] = [
   [1, 1],
   [1, -1],
 ];
+
+/** A fresh visited array with every anchored cell pre-marked (never a chain step). */
+function visitedWithAnchors(cellCount: number, anchors: ReadonlySet<CellIndex>): boolean[] {
+  const visited = new Array<boolean>(cellCount).fill(false);
+  for (const anchor of anchors) {
+    visited[anchor] = true;
+  }
+  return visited;
+}
 
 /** The lowest-index same-colour neighbour of `cell` not already in `visited`. */
 function nextNeighbour(
@@ -69,10 +88,19 @@ function nextNeighbour(
   return best;
 }
 
-/** A greedy simple path from `start`, always extending to the lowest-index cell. */
-function greedyPath(board: Board, start: CellIndex, rows: number, cols: number): CellIndex[] {
+/**
+ * A greedy simple path from `start`, always extending to the lowest-index cell.
+ * Anchored cells are pre-marked visited, so the path never steps onto a weight.
+ */
+function greedyPath(
+  board: Board,
+  start: CellIndex,
+  rows: number,
+  cols: number,
+  anchors: ReadonlySet<CellIndex>,
+): CellIndex[] {
   const color = board[start];
-  const visited = new Array<boolean>(board.length).fill(false);
+  const visited = visitedWithAnchors(board.length, anchors);
   visited[start] = true;
   const path: CellIndex[] = [start];
   for (;;) {
@@ -121,7 +149,8 @@ function sameColorNeighbours(
  * `minLen` from `start`. Unlike `greedyPath` this backtracks, so it finds a
  * length-`minLen` chain whenever one exists from `start` — the soundness net
  * that keeps `enumerateMoves` in agreement with `hasLegalMove`. Depth is capped
- * at `minLen` (3–4), so the search is cheap and always terminates.
+ * at `minLen` (3–4), so the search is cheap and always terminates. Anchored
+ * cells are pre-marked visited, so a candidate path never steps onto a weight.
  */
 function findChain(
   board: Board,
@@ -129,9 +158,10 @@ function findChain(
   rows: number,
   cols: number,
   minLen: number,
+  anchors: ReadonlySet<CellIndex>,
 ): CellIndex[] | null {
   const color = board[start];
-  const visited = new Array<boolean>(board.length).fill(false);
+  const visited = visitedWithAnchors(board.length, anchors);
   const path: CellIndex[] = [];
 
   const extend = (cell: CellIndex): boolean => {
@@ -153,7 +183,10 @@ function findChain(
   return extend(start) ? [...path] : null;
 }
 
-/** The straight run of `lineLength` cells from `start` in `(dRow, dCol)`, or null. */
+/**
+ * The straight run of `lineLength` cells from `start` in `(dRow, dCol)`, or null.
+ * A run that covers an anchored cell is rejected — a weight can't join a sweep.
+ */
 function lineRun(
   board: Board,
   start: CellIndex,
@@ -162,6 +195,7 @@ function lineRun(
   rows: number,
   cols: number,
   lineLength: number,
+  anchors: ReadonlySet<CellIndex>,
 ): CellIndex[] | null {
   const color = board[start];
   const row = Math.floor(start / cols);
@@ -170,22 +204,38 @@ function lineRun(
   for (let step = 0; step < lineLength; step += 1) {
     const r = row + dRow * step;
     const c = col + dCol * step;
-    if (r < 0 || c < 0 || r >= rows || c >= cols || board[r * cols + c] !== color) {
+    if (r < 0 || c < 0 || r >= rows || c >= cols) {
       return null;
     }
-    run.push(r * cols + c);
+    const idx = r * cols + c;
+    if (board[idx] !== color || anchors.has(idx)) {
+      return null;
+    }
+    run.push(idx);
   }
   return run;
 }
 
-/** The 2×2 loop chain at top-left `(r, c)` when all four cells share a colour. */
-function squareLoop(board: Board, r: number, c: number, cols: number): CellIndex[] | null {
+/**
+ * The 2×2 loop chain at top-left `(r, c)` when all four cells share a colour and
+ * none holds a weight — an anchored corner makes the loop uncommittable.
+ */
+function squareLoop(
+  board: Board,
+  r: number,
+  c: number,
+  cols: number,
+  anchors: ReadonlySet<CellIndex>,
+): CellIndex[] | null {
   const tl = r * cols + c;
   const tr = tl + 1;
   const bl = tl + cols;
   const br = bl + 1;
   const color = board[tl];
   if (board[tr] !== color || board[bl] !== color || board[br] !== color) {
+    return null;
+  }
+  if (anchors.has(tl) || anchors.has(tr) || anchors.has(bl) || anchors.has(br)) {
     return null;
   }
   return [tl, tr, br, bl, tl];
@@ -209,12 +259,13 @@ function chainAt(
   rows: number,
   cols: number,
   minChain: number,
+  anchors: ReadonlySet<CellIndex>,
 ): CellIndex[] | null {
-  const path = greedyPath(board, start, rows, cols);
+  const path = greedyPath(board, start, rows, cols, anchors);
   if (path.length >= minChain) {
     return path;
   }
-  return findChain(board, start, rows, cols, minChain);
+  return findChain(board, start, rows, cols, minChain, anchors);
 }
 
 /** Every straight sweep run of `lineLength` cells seeded at `start`. */
@@ -224,10 +275,11 @@ function lineRunsAt(
   rows: number,
   cols: number,
   lineLength: number,
+  anchors: ReadonlySet<CellIndex>,
 ): CellIndex[][] {
   const runs: CellIndex[][] = [];
   for (const [dRow, dCol] of LINE_DIRS) {
-    const run = lineRun(board, start, dRow, dCol, rows, cols, lineLength);
+    const run = lineRun(board, start, dRow, dCol, rows, cols, lineLength, anchors);
     if (run !== null) {
       runs.push(run);
     }
@@ -236,11 +288,16 @@ function lineRunsAt(
 }
 
 /** Every 2×2 loop sweep on the board. */
-function squareLoops(board: Board, rows: number, cols: number): CellIndex[][] {
+function squareLoops(
+  board: Board,
+  rows: number,
+  cols: number,
+  anchors: ReadonlySet<CellIndex>,
+): CellIndex[][] {
   const loops: CellIndex[][] = [];
   for (let r = 0; r < rows - 1; r += 1) {
     for (let c = 0; c < cols - 1; c += 1) {
-      const loop = squareLoop(board, r, c, cols);
+      const loop = squareLoop(board, r, c, cols, anchors);
       if (loop !== null) {
         loops.push(loop);
       }
@@ -249,8 +306,16 @@ function squareLoops(board: Board, rows: number, cols: number): CellIndex[][] {
   return loops;
 }
 
-/** Every representative committable move on the board, deduped and classified. */
-export function enumerateMoves(board: Board, config: GameConfig): Move[] {
+/**
+ * Every representative committable move on the board, deduped and classified.
+ * `anchors` (default empty) are non-linkable weights: no move starts at, steps
+ * through, or sweeps one — the same skip rule `hasLegalMove` applies.
+ */
+export function enumerateMoves(
+  board: Board,
+  config: GameConfig,
+  anchors: ReadonlySet<CellIndex> = NO_ANCHORS,
+): Move[] {
   const { rows, cols, minChain, lineLength } = config;
   const moves: Move[] = [];
   const seen = new Set<string>();
@@ -265,15 +330,18 @@ export function enumerateMoves(board: Board, config: GameConfig): Move[] {
   };
 
   for (let start = 0; start < board.length; start += 1) {
-    const chain = chainAt(board, start, rows, cols, minChain);
+    if (anchors.has(start)) {
+      continue; // a weight is never a chain or sweep seed (matches hasLegalMove)
+    }
+    const chain = chainAt(board, start, rows, cols, minChain, anchors);
     if (chain !== null) {
       add(chain);
     }
-    for (const run of lineRunsAt(board, start, rows, cols, lineLength)) {
+    for (const run of lineRunsAt(board, start, rows, cols, lineLength, anchors)) {
       add(run);
     }
   }
-  for (const loop of squareLoops(board, rows, cols)) {
+  for (const loop of squareLoops(board, rows, cols, anchors)) {
     add(loop);
   }
 

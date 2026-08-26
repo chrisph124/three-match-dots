@@ -1,4 +1,7 @@
-import type { Board, Color } from './types';
+import type { Board, CellIndex, Color } from './types';
+
+/** A shared, never-mutated empty anchor set: the Endless default path. */
+const NO_ANCHORS: ReadonlySet<CellIndex> = new Set();
 
 /** The eight (dRow, dCol) offsets of a cell's 8-neighbourhood. */
 const NEIGHBOUR_OFFSETS: readonly (readonly [number, number])[] = [
@@ -74,10 +77,30 @@ function chainFrom(
  * 8-way adjacency the four cells of any 2x2 block are pairwise adjacent, so
  * with three colours the pigeonhole principle guarantees a same-colour pair on
  * every board — a pair-based check would always return true.
+ *
+ * `anchors` are cells occupied by a non-linkable weight: a chain can neither
+ * begin at one nor pass through one. They are pre-marked in `seen` (which the
+ * DFS never enters and never unwinds), so an anchored cell is skipped both as a
+ * start and as a neighbour, with no extra recursion argument. An empty set (the
+ * Endless default) is byte-identical to the pre-anchor search.
  */
-export function hasLegalMove(board: Board, rows: number, cols: number, minChain: number): boolean {
+export function hasLegalMove(
+  board: Board,
+  rows: number,
+  cols: number,
+  minChain: number,
+  anchors: ReadonlySet<CellIndex> = NO_ANCHORS,
+): boolean {
   const seen = new Array<boolean>(rows * cols).fill(false);
+  for (const anchor of anchors) {
+    seen[anchor] = true; // a weight is never a chain start or step
+  }
   for (let start = 0; start < board.length; start++) {
+    // A pre-marked anchor is the only cell left true between starts (a failed
+    // DFS restores every cell it touched), so this also skips anchored starts.
+    if (seen[start]) {
+      continue;
+    }
     if (chainFrom(board, seen, start, 1, rows, cols, board[start], minChain)) {
       return true;
     }
