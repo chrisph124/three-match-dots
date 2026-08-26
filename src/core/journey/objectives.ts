@@ -2,12 +2,16 @@ import type { CellIndex, Color, Resolution } from '../types';
 
 /**
  * Journey objective kinds. `clearColor` counts cleared dots of one colour;
- * `freeCaged` completes when every caged cell has been freed. The `type`
- * discriminator matches the level-script JSON (see docs/level-script-schema.md).
+ * `freeCaged` completes when every caged cell has been freed; `clearAnchors`
+ * completes when every anchor weight has been removed. `freeCaged` and
+ * `clearAnchors` share the same "drain an overlay to empty" shape, differing only
+ * in which overlay they read. The `type` discriminator matches the level-script
+ * JSON (see docs/level-script-schema.md).
  */
 export type Objective =
   | { readonly type: 'clearColor'; readonly color: Color; readonly count: number }
-  | { readonly type: 'freeCaged' };
+  | { readonly type: 'freeCaged' }
+  | { readonly type: 'clearAnchors' };
 
 export type ObjectiveProgress = {
   readonly objective: Objective;
@@ -18,15 +22,24 @@ export type ObjectiveProgress = {
 
 /**
  * Seeds progress for each objective. `freeCaged`'s target is the initial cage
- * count, so a level with no cages completes it immediately (a degenerate case
- * the level parser rejects, but kept honest here).
+ * count and `clearAnchors`'s is the initial anchor count, so a level with none of
+ * the matching overlay completes that objective immediately (a degenerate case
+ * the level parser rejects, but kept honest here). `initialAnchorCount` defaults
+ * to 0 so callers that predate anchors stay unchanged; the state layer passes the
+ * real anchor-overlay size the same way it passes `initialCagedCount`.
  */
 export function initObjectives(
   objectives: readonly Objective[],
   initialCagedCount: number,
+  initialAnchorCount = 0,
 ): ObjectiveProgress[] {
   return objectives.map((objective) => {
-    const target = objective.type === 'clearColor' ? objective.count : initialCagedCount;
+    let target = initialCagedCount;
+    if (objective.type === 'clearColor') {
+      target = objective.count;
+    } else if (objective.type === 'clearAnchors') {
+      target = initialAnchorCount;
+    }
     return { objective, current: 0, target, done: target <= 0 };
   });
 }
@@ -43,11 +56,16 @@ export function initObjectives(
  *   so it needs the post-chip/post-remap caged overlay for this resolution. The
  *   overlay is a `Map<index, layers>`; only its `.size` (cages still present)
  *   matters here — a cage still counts as unfreed while any layer remains.
+ * - `clearAnchors` is the same shape over the anchor overlay (a `Set<index>`):
+ *   `target - remaining`, done at zero remaining. `anchorsRemaining` defaults to
+ *   an empty set so pre-anchor callers stay unchanged; the state layer passes the
+ *   post-removal overlay the same way it passes `cagedRemaining`.
  */
 export function foldObjectives(
   progress: readonly ObjectiveProgress[],
   resolution: Resolution,
   cagedRemaining: ReadonlyMap<CellIndex, number>,
+  anchorsRemaining: ReadonlySet<CellIndex> = new Set(),
 ): ObjectiveProgress[] {
   return progress.map((entry) => {
     const { objective, target } = entry;
@@ -59,7 +77,9 @@ export function foldObjectives(
       const current = Math.min(target, entry.current + freshlyCleared);
       return { objective, current, target, done: current >= target };
     }
-    const current = Math.max(0, target - cagedRemaining.size);
-    return { objective, current, target, done: cagedRemaining.size === 0 };
+    const remaining =
+      objective.type === 'clearAnchors' ? anchorsRemaining.size : cagedRemaining.size;
+    const current = Math.max(0, target - remaining);
+    return { objective, current, target, done: remaining === 0 };
   });
 }

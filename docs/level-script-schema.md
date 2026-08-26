@@ -1,12 +1,15 @@
-# Three Dots — Level-Script Schema (v1 + v2)
+# Three Dots — Level-Script Schema (v1 + v2 + v3)
 
 **Date:** 2026-08-06 (concept); retargeted to React Native / TypeScript / `zod` 2026-08-16;
-extended to **schemaVersion 2 (Voyage)** 2026-08-24.
+extended to **schemaVersion 2 (Voyage)** 2026-08-24; **schemaVersion 3 (anchor/weight obstacle)** 2026-08-26.
 **Status:** **Implemented** in `src/core/level/level-script.ts` (`parseLevelScript`). The validator now
-accepts **schemaVersion `1` OR `2`**: v1 is the shipped Journey/Endless contract, v2 adds the `voyage`
+accepts **schemaVersion `1`, `2`, OR `3`**: v1 is the shipped Journey/Endless contract, v2 adds the `voyage`
 mode, the pluggable `constraint` union, and the optional `voyage`/`theme` blocks (see "Schema v2 —
-Voyage additions" below). Every v1 level parses unchanged under v2. Evolve only via a `schemaVersion`
-bump (add optional fields freely; bump on any breaking change).
+Voyage additions" below), and v3 marks the round that adds the `anchor` obstacle + `clearAnchors` objective.
+Every v1 level parses unchanged under v2/v3. **Version 3 is a documentation marker, not a behavioural gate:**
+the `anchor` obstacle and `clearAnchors` objective are **additive and un-gated** — the validator accepts
+them at any `schemaVersion` (unlike the `voyage` mode, which still requires `schemaVersion: 2`). Evolve only
+via a `schemaVersion` bump (add optional fields freely; bump on any breaking change).
 **Purpose:** A machine-readable definition of one level. One file = one level. The engine loads and
 validates these; Journey cities are hand-authored, Voyage levels are emitted by the generator
 (`src/core/voyage/`).
@@ -54,12 +57,13 @@ validates these; Journey cities are hand-authored, Voyage levels are emitted by 
 
   "objectives": [
     // 1+; ALL must be met to win (AND). Authored per city.
+    // Kinds: "clearColor" | "freeCaged" | "clearAnchors" (see the enum note below).
     { "type": "clearColor", "color": 0, "count": 20 },
     { "type": "freeCaged", "count": 3 },
   ],
 
   "obstacles": [
-    // 0+; placed by cell. v1 slice ships "cagedDot" only.
+    // 0+; placed by cell. Variants: "cagedDot" and "anchor" (both sections below).
     { "type": "cagedDot", "cell": { "col": 2, "row": 3 } },
   ],
 
@@ -221,13 +225,51 @@ worst — the engine has no hook to force that specific cell to a chosen color. 
 dealt color is deterministic and knowable ahead of time; a level's fixture test asserts the caged cell's
 actual dealt color under that seed instead of trusting an authored value that the engine can't enforce.
 
-**Obstacle-type enum (v0):** `cagedDot` only. The wider obstacle catalog in
-`docs/three-dots-game-design.md` (anchor, locked tile, color lock) is design intent for later cities, not
-yet in the validated schema — adding one is a `schemaVersion` bump once its Journey-layer support ships.
+**Obstacle-type enum:** `cagedDot` and `anchor` — `obstacleSchema` is a discriminated union on `type`
+(`src/core/level/level-script.ts`). The remaining catalog in `docs/three-dots-game-design.md` (locked
+tile, color lock) is design intent for later cities, not yet in the validated schema — adding one is a
+`schemaVersion` bump once its Journey-layer support ships.
 
-**Objective-type enum (v0):** `clearColor` and `freeCaged` only, matching what the Journey layer folds
-today. Broader objective ideas from the concept doc (total-clears, loop-clear counts, score targets) are
-catalog entries for a later `schemaVersion`, not validated yet.
+**Objective-type enum:** `clearColor`, `freeCaged`, and `clearAnchors`, matching what the Journey layer
+folds today. Broader objective ideas from the concept doc (total-clears, loop-clear counts, score targets)
+are catalog entries for a later `schemaVersion`, not validated yet.
+
+## `anchor` obstacle — positional weight
+
+```jsonc
+{ "type": "anchor", "cell": { "col": 2, "row": 3 } }
+```
+
+**Positional only — no `layers`, no `color`.** An anchor is a paper **weight** pinned to a cell, not a
+dot in disguise. Unlike a caged dot it is **never linkable** and never clears by being chained; it is a
+Journey/Voyage-layer overlay (a `Set` of board indices), never a colour in the `Board`, so the tested
+colour core (`resolve/**`, `hot/**`) stays untouched — the same discipline as `cagedDot`. It **falls with
+gravity** (and shifts on a reshuffle) in lockstep with the cell under it.
+
+**Single-hit removal — 8-way adjacency, any clear.** An anchor is removed the instant a cleared cell is
+**8-way adjacent** to it — a normal chain, a 2×2-loop sweep, or a line sweep of **any** colour all count
+(the weight is colourless; there is no colour to match). It has **no layers and no HP** — one adjacent
+clear removes it outright (weight-N is the cage's identity, not the anchor's). The freed cell then empties,
+falls, and refills in the same resolution. Adjacency is the one `hot/adjacency.ts` authority the chain
+rules already use (diagonals + row-edge handled once); the anchor cell is itself never cleared, and
+`areAdjacent(a, a)` is false, so the rule reads as "an adjacent clear removes it," not "clearing the cell
+removes it." The removal rule (`removeAdjacent`, `src/core/obstacles/anchor.ts`) is shared verbatim by the
+runtime fold and the solver heuristic, so the two can never disagree about which weight a clear removes.
+
+**`clearAnchors` objective.** `{ "type": "clearAnchors" }` — remove every anchor on the board. An authored
+`count` is **accepted but stripped**: the runtime target is the level's actual anchor count (like
+`freeCaged`), so a redundant authored value can't drift from the board.
+
+**Validation gate.** A `clearAnchors` objective **requires at least one `anchor` obstacle** (else it would
+be complete the instant it opens); the parser rejects a `clearAnchors` level with no anchor. Objectives are
+counted by obstacle **type**, not total — an anchor-only board must not satisfy `freeCaged`, nor a cage-only
+board `clearAnchors`. The general "no two obstacles on the same cell" rule (below) means a cell is never both
+caged and anchored, so the two overlays are always disjoint.
+
+**Both modes; never Endless.** Anchors ship in Journey (hand-authored) and Voyage (the generator's
+archetype pool now seeds winnable anchor levels, proven by the winnability sweep). Endless never uses
+obstacles. The overlay reuses the cage's kraft-paper pigments and introduces **no** new `DOT_COLORS` entry
+(`DOT_COLORS` is frozen/append-only; those hues are dot identity, not chrome).
 
 ## Freeing semantics
 
@@ -287,12 +329,17 @@ design:
 
 ## Versioning
 
-- `schemaVersion` is `1` or `2`; the validator **accepts both** and rejects any other value rather than
-  mis-parsing. Adding an **optional** field with a safe default is non-breaking (keep version). A new
-  **mode** with its own required fields (Voyage's `constraint`/`voyage`) is gated behind a version bump so
-  the older shape stays valid — hence `mode: 'voyage'` requires `schemaVersion: 2` while every v1 level
-  parses unchanged under either version. Renaming/removing/retyping a field, or adding a field required of
-  **all** levels, = bump `schemaVersion` and migrate authored levels.
+- `schemaVersion` is `1`, `2`, or `3`; the validator **accepts all three** and rejects any other value
+  rather than mis-parsing. Adding an **optional** field with a safe default is non-breaking (keep version).
+  A new **mode** with its own required fields (Voyage's `constraint`/`voyage`) is gated behind a version
+  bump so the older shape stays valid — hence `mode: 'voyage'` requires `schemaVersion: 2` while every v1
+  level parses unchanged under any version. Renaming/removing/retyping a field, or adding a field required
+  of **all** levels, = bump `schemaVersion` and migrate authored levels.
+- **Version `3` is a documentation marker, not a behavioural gate.** The `anchor` obstacle and
+  `clearAnchors` objective it names are **additive and un-gated** — both are accepted at `schemaVersion` 1,
+  2, or 3 (they add optional union arms, breaking no existing level). The bump records the round they
+  landed for authors; it does not restrict them. Generated Voyage levels stay `schemaVersion: 2` and may
+  still carry anchors.
 
 ## Why this must precede the agent
 

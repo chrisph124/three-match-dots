@@ -9,6 +9,7 @@ import { useBoardAnimation } from '../effects/use-board-animation';
 import { useBoardGesture, useChainState } from '../input/use-board-gesture';
 import { useJourneyState } from '../meta/use-journey-state';
 import { hasSeenCageIntro, markCageIntroSeen } from '../meta/tutorial-flags';
+import { AnchorOverlayLayer } from '../render/anchor-overlay-layer';
 import { BoardCanvas } from '../render/board-canvas';
 import { CageIntroPopup } from '../render/cage-intro-popup';
 import { CageOverlayLayer } from '../render/cage-overlay-layer';
@@ -28,12 +29,13 @@ function formatTime(ms: number): string {
 
 function ObjectiveBadge({ entry }: { entry: ObjectiveProgress }) {
   const { objective, current, target, done } = entry;
+  const label = objective.type === 'clearAnchors' ? 'Anchors' : 'Cages';
   return (
     <View style={styles.objective}>
       {objective.type === 'clearColor' ? (
         <View style={[styles.swatch, { backgroundColor: colorFor(objective.color) }]} />
       ) : (
-        <Text style={styles.objectiveLabel}>Cages</Text>
+        <Text style={styles.objectiveLabel}>{label}</Text>
       )}
       <Text style={[styles.objectiveCount, done && styles.objectiveDone]}>
         {current}/{target}
@@ -111,6 +113,7 @@ function JourneyRun({ level, onRestart }: { level: LevelScript; onRestart: () =>
             anim={anim}
             reduceMotion={reduceMotion}
           />
+          <AnchorOverlayLayer anchors={journey.anchors} layout={layout} anim={anim} />
         </View>
       </GestureDetector>
 

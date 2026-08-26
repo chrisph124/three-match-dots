@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { hasLegalMove } from '../deadlock';
 import { newGame } from '../game';
-import { levelToConfig, parseLevelScript, type LevelScript } from '../level/level-script';
+import {
+  anchorCells,
+  levelToConfig,
+  parseLevelScript,
+  type LevelScript,
+} from '../level/level-script';
 import { protectedOf } from '../obstacles/caged-dot';
+import { resolveAnchorChain } from '../resolve-anchor-chain';
 import { resolveChain } from '../resolve/resolve-chain';
 import { parseBoard } from '../test-support/board-fixture';
-import type { Color, GameConfig, Resolution } from '../types';
+import type { CellIndex, Color, GameConfig, Resolution } from '../types';
 import { initObjectives, type Objective } from './objectives';
 import {
   applyJourneyResolution,
@@ -57,17 +63,20 @@ function journeyOf(opts: {
   board: Color[];
   config: GameConfig;
   caged: Map<number, number>;
+  anchors?: Set<CellIndex>;
   objectives: Objective[];
   timeRemainingMs: number;
   level: LevelScript;
   rngState?: number;
 }): JourneyState {
+  const anchors = opts.anchors ?? new Set<CellIndex>();
   return {
     game: { config: opts.config, board: opts.board, score: 0, rngState: opts.rngState ?? 0 },
     level: opts.level,
     timeRemainingMs: opts.timeRemainingMs,
-    objectives: initObjectives(opts.objectives, opts.caged.size),
+    objectives: initObjectives(opts.objectives, opts.caged.size, anchors.size),
     caged: opts.caged,
+    anchors,
     status: 'playing',
   };
 }
@@ -130,6 +139,39 @@ describe('newJourney', () => {
     expect(jstate.objectives).toHaveLength(2);
     const freeCaged = jstate.objectives.find((o) => o.objective.type === 'freeCaged');
     expect(freeCaged?.target).toBe(3); // initial cage count
+  });
+});
+
+describe('newJourney — anchors', () => {
+  const level = parseLevelScript(
+    {
+      schemaVersion: 3,
+      id: 'anchor-test',
+      chapter: { country: 'Japan', order: 1 },
+      city: { name: 'Osaka', isCapital: false },
+      order: 1,
+      board: { cols: 6, rows: 6, colors: 5, minChain: 3 },
+      seed: 20260806,
+      mode: 'journey',
+      timer: { startMs: 60000, mistakePenaltyMs: 2000, clearBonusMs: 0 },
+      objectives: [{ type: 'clearAnchors' }],
+      obstacles: [
+        { type: 'anchor', cell: { col: 2, row: 3 } }, // → index 20
+        { type: 'anchor', cell: { col: 3, row: 3 } }, // → index 21
+      ],
+    },
+    PALETTE,
+  );
+
+  it('seeds the anchor overlay and the clearAnchors target from the level', () => {
+    const jstate = newJourney(level, 999);
+    expect([...jstate.anchors].sort((a, b) => a - b)).toEqual([20, 21]);
+    expect([...jstate.anchors].sort((a, b) => a - b)).toEqual(
+      [...anchorCells(level)].sort((a, b) => a - b),
+    );
+    const clearAnchors = jstate.objectives.find((o) => o.objective.type === 'clearAnchors');
+    expect(clearAnchors?.target).toBe(2); // initial anchor count
+    expect(clearAnchors?.done).toBe(false);
   });
 });
 
@@ -302,6 +344,118 @@ describe('applyJourneyResolution', () => {
   });
 });
 
+describe('applyJourneyResolution — anchors', () => {
+  const ART = 'RRRB/BGBG/GBGB/BGBG'; // top RRR (0,1,2) is a legal 3-chain of colour 0
+  const NO_CAGES = new Map<CellIndex, number>();
+  const anchorLevel = () =>
+    parsedLevel({ startMs: 10000, mistakePenaltyMs: 2000, clearBonusMs: 0 });
+
+  it('removes an anchor cleared by adjacency (via expandedCleared) and advances clearAnchors', () => {
+    const board = parseBoard(ART).board;
+    // Anchor 4 (row 1, col 0) is 8-adjacent to the RRR chain; anchor 15 is far away.
+    const anchors = new Set<CellIndex>([4, 15]);
+    const jstate = journeyOf({
+      board,
+      config: CONFIG_4X4,
+      caged: NO_CAGES,
+      anchors,
+      objectives: [{ type: 'clearAnchors' }],
+      timeRemainingMs: 10000,
+      level: anchorLevel(),
+      rngState: 7,
+    });
+
+    const resolution = resolveAnchorChain(jstate.game, [0, 1, 2], NO_CAGES, anchors);
+    if (resolution === null) throw new Error('fixture chain must resolve');
+    expect(resolution.expandedCleared).toEqual([4]); // sanity: the seam removed anchor 4
+
+    const out = applyJourneyResolution(jstate, resolution);
+    expect([...out.anchors]).toEqual([15]); // 4 removed, 15 survives
+    const clearAnchors = out.objectives.find((o) => o.objective.type === 'clearAnchors');
+    expect(clearAnchors?.current).toBe(1); // one of two removed
+    expect(clearAnchors?.done).toBe(false);
+    expect(out.status).toBe('playing');
+  });
+
+  it('wins when the last anchor is removed', () => {
+    const board = parseBoard(ART).board;
+    const anchors = new Set<CellIndex>([4]);
+    const jstate = journeyOf({
+      board,
+      config: CONFIG_4X4,
+      caged: NO_CAGES,
+      anchors,
+      objectives: [{ type: 'clearAnchors' }],
+      timeRemainingMs: 10000,
+      level: anchorLevel(),
+      rngState: 7,
+    });
+
+    const resolution = resolveAnchorChain(jstate.game, [0, 1, 2], NO_CAGES, anchors);
+    if (resolution === null) throw new Error('fixture chain must resolve');
+    const out = applyJourneyResolution(jstate, resolution);
+    expect(out.anchors.size).toBe(0);
+    expect(out.status).toBe('won');
+  });
+
+  it('remaps a surviving anchor through gravity falls (consumes falls, not adjacency)', () => {
+    const board = parseBoard(ART).board;
+    const anchors = new Set<CellIndex>([4, 8]);
+    const jstate = journeyOf({
+      board,
+      config: CONFIG_4X4,
+      caged: NO_CAGES,
+      anchors,
+      objectives: [{ type: 'clearAnchors' }],
+      timeRemainingMs: 10000,
+      level: anchorLevel(),
+      rngState: 7,
+    });
+
+    // Hand-built resolution: anchor 4 removed (echoed), survivor 8 falls to 12.
+    const resolution: Resolution = {
+      kind: 'plain',
+      color: 0,
+      cleared: [
+        { index: 0, color: 0, reason: 'chain' },
+        { index: 1, color: 0, reason: 'chain' },
+        { index: 2, color: 0, reason: 'chain' },
+      ],
+      falls: [{ from: 8, to: 12 }],
+      spawns: [],
+      scoreDelta: 10,
+      board: jstate.game.board,
+      rngState: 7,
+      expandedCleared: [4],
+    };
+
+    const out = applyJourneyResolution(jstate, resolution);
+    expect([...out.anchors].sort((a, b) => a - b)).toEqual([12]); // 4 removed, 8 → 12
+  });
+
+  it('does not let an anchor removal advance a clearColor objective', () => {
+    const board = parseBoard(ART).board;
+    const anchors = new Set<CellIndex>([4]);
+    const jstate = journeyOf({
+      board,
+      config: CONFIG_4X4,
+      caged: NO_CAGES,
+      anchors,
+      objectives: [{ type: 'clearColor', color: 0, count: 20 }, { type: 'clearAnchors' }],
+      timeRemainingMs: 10000,
+      level: anchorLevel(),
+      rngState: 7,
+    });
+
+    const resolution = resolveAnchorChain(jstate.game, [0, 1, 2], NO_CAGES, anchors);
+    if (resolution === null) throw new Error('fixture chain must resolve');
+    const out = applyJourneyResolution(jstate, resolution);
+    const color = out.objectives.find((o) => o.objective.type === 'clearColor');
+    // 3 R cleared → colour count 3; the removed anchor contributes nothing.
+    expect(color?.current).toBe(3);
+  });
+});
+
 describe('settleJourney', () => {
   const level = parsedLevel({ startMs: 5000, mistakePenaltyMs: 2000, clearBonusMs: 0 });
 
@@ -340,5 +494,33 @@ describe('settleJourney', () => {
     const out = settleJourney(jstate);
     expect(out.jstate).toBe(jstate);
     expect(out.moves).toEqual([]);
+  });
+});
+
+describe('settleJourney — anchors', () => {
+  const level = parsedLevel({ startMs: 5000, mistakePenaltyMs: 2000, clearBonusMs: 0 });
+
+  it('keeps the anchor overlay in place across a reshuffle (not remapped)', () => {
+    const parsed = parseBoard('BGGR/RRBR/BGBG/RGRR'); // proven deadlock at minChain 3
+    const anchors = new Set<CellIndex>([5, 10]);
+    // Anchors only remove moves, so a board deadlocked bare is deadlocked here too.
+    expect(hasLegalMove(parsed.board, 4, 4, 3, anchors)).toBe(false);
+
+    const jstate = journeyOf({
+      board: parsed.board,
+      config: CONFIG_4X4,
+      caged: new Map<CellIndex, number>(),
+      anchors,
+      objectives: [{ type: 'clearColor', color: 0, count: 5 }],
+      timeRemainingMs: 5000,
+      level,
+      rngState: 12345,
+    });
+
+    const out = settleJourney(jstate);
+    // The reshuffled board is anchor-aware legal...
+    expect(hasLegalMove(out.jstate.game.board, 4, 4, 3, out.jstate.anchors)).toBe(true);
+    // ...and the anchor overlay is carried through untouched (same reference, in place).
+    expect(out.jstate.anchors).toBe(jstate.anchors);
   });
 });

@@ -38,4 +38,17 @@ describe('generation winnability sweep', () => {
     expect(core.objectives).toEqual([{ type: 'freeCaged' }]);
     expect(solve(core, core.seed ?? core.order).won).toBe(true);
   });
+
+  it('ships winnable anchor levels (the weight obstacle reaches the ladder)', () => {
+    // The archetype pool now includes anchor objectives, so the ladder must carry
+    // at least one weight level; each must be beatable like every other level.
+    const anchorLevels = LADDER.filter((level) =>
+      level.objectives.some((objective) => objective.type === 'clearAnchors'),
+    );
+    expect(anchorLevels.length).toBeGreaterThan(0);
+    for (const level of anchorLevels) {
+      expect(level.obstacles.some((obstacle) => obstacle.type === 'anchor')).toBe(true);
+      expect(solve(level, level.seed ?? level.order).won).toBe(true);
+    }
+  });
 });

@@ -1,7 +1,7 @@
 ---
 phase: 1
 title: 'Schema + core anchor module'
-status: todo
+status: done
 priority: P1
 effort: '4h'
 dependencies: []

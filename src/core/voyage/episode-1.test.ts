@@ -61,7 +61,9 @@ describe('episode-1 cage layers (Validation S1)', () => {
   it('keeps level 4 a 1-layer instant-pop cage (no layers field)', () => {
     const level = episodeOneLevel(4, PALETTE);
     expect(level.obstacles).toHaveLength(1);
-    expect(level.obstacles.every((o) => o.layers === undefined)).toBe(true);
+    expect(level.obstacles.every((o) => o.type === 'cagedDot' && o.layers === undefined)).toBe(
+      true,
+    );
     expect(cagedCells(level).every((c) => c.layers === 1)).toBe(true);
   });
 

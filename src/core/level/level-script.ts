@@ -12,10 +12,13 @@ import type { CellIndex, GameConfig } from '../types';
  * from `src/render/palette.ts`: the core must not depend on the render layer, so
  * the caller (the meta/route layer, which owns the palette) passes its length.
  *
- * Versioning: `schemaVersion` accepts `1` (the shipped Journey/Endless contract)
- * OR `2` (adds the `voyage` mode, the pluggable `constraint` union, and the
- * optional `voyage`/`theme` blocks). Every v1 level parses unchanged under v2;
- * only voyage levels require `schemaVersion: 2`.
+ * Versioning: `schemaVersion` accepts `1` (the shipped Journey/Endless contract),
+ * `2` (adds the `voyage` mode, the pluggable `constraint` union, and the optional
+ * `voyage`/`theme` blocks) OR `3` (the anchor/weight obstacle round). Every older
+ * level parses unchanged under a newer version; only voyage levels require
+ * `schemaVersion: 2`. The `anchor` obstacle + `clearAnchors` objective are
+ * additive and un-gated (accepted at any version), so `3` is a documentation
+ * marker rather than a behavioural gate.
  */
 
 /** Board footprint ceiling — a sanity bound, not a gameplay limit. */
@@ -27,10 +30,11 @@ const cellSchema = z.object({
 });
 
 /**
- * Objective enum: `clearColor` (clear N dots of a color) and `freeCaged`
- * (free every caged dot). An authored `count` on `freeCaged` is accepted but
- * stripped — the runtime target is the actual cage count (see journey-state),
- * so a redundant authored value can't drift from it.
+ * Objective enum: `clearColor` (clear N dots of a color), `freeCaged` (free every
+ * caged dot) and `clearAnchors` (remove every anchor). An authored `count` on
+ * `freeCaged`/`clearAnchors` is accepted but stripped — the runtime target is the
+ * actual cage/anchor count (see journey-state), so a redundant authored value
+ * can't drift from it.
  */
 const objectiveSchema = z.discriminatedUnion('type', [
   z.object({
@@ -41,21 +45,35 @@ const objectiveSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('freeCaged'),
   }),
+  z.object({
+    type: z.literal('clearAnchors'),
+  }),
 ]);
 
 /**
- * Obstacle enum: `cagedDot` only, placed positionally (no authored color).
- * `layers` is the number of same-colour clears (including the caged dot) needed
- * to break the cage. Optional and backward-compatible — absent ⇒ treated as `1`
- * (a single-clear pop, today's behaviour), so no `schemaVersion` bump. Bounded
- * `[1,5]` so a fat-fingered authored value can't create an unwinnable,
- * un-solver-checked cage; 5 is a generous ceiling above the boss band's 3.
+ * Obstacle enum, a discriminated union placed positionally (no authored color):
+ * - `cagedDot`: `layers` is the number of same-colour clears (including the caged
+ *   dot) needed to break the cage. Optional and backward-compatible — absent ⇒
+ *   treated as `1` (a single-clear pop, today's behaviour). Bounded `[1,5]` so a
+ *   fat-fingered authored value can't create an unwinnable, un-solver-checked
+ *   cage; 5 is a generous ceiling above the boss band's 3.
+ * - `anchor`: a single-hit paper weight — unlinkable, falls with gravity, removed
+ *   by any 8-way-adjacent same-colour clear. No `layers`/`color` field (weight-N
+ *   is the cage's identity; 8-way any-colour is the anchor's).
+ *
+ * Both variants are additive and un-gated (any `schemaVersion`), matching the
+ * `layers` "so no schemaVersion bump" precedent above.
  */
-const obstacleSchema = z.object({
+const cagedDotSchema = z.object({
   type: z.literal('cagedDot'),
   cell: cellSchema,
   layers: z.number().int().min(1).max(5).optional(),
 });
+const anchorSchema = z.object({
+  type: z.literal('anchor'),
+  cell: cellSchema,
+});
+const obstacleSchema = z.discriminatedUnion('type', [cagedDotSchema, anchorSchema]);
 
 const timerSchema = z.object({
   startMs: z.number().int().positive(),
@@ -151,7 +169,7 @@ const rewardsSchema = z.object({
 });
 
 const levelSchema = z.object({
-  schemaVersion: z.union([z.literal(1), z.literal(2)]),
+  schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   id: z.string().min(1),
   // Journey-only framing; a voyage level omits both (it locates itself via the
   // `voyage` envelope). Optional so v2 generated levels need not fake a chapter.
@@ -179,6 +197,8 @@ const levelSchema = z.object({
 
 export type LevelScript = z.infer<typeof levelSchema>;
 export type Obstacle = z.infer<typeof obstacleSchema>;
+export type CagedDotObstacle = z.infer<typeof cagedDotSchema>;
+export type AnchorObstacle = z.infer<typeof anchorSchema>;
 export type Constraint = z.infer<typeof constraintSchema>;
 export type VoyageMeta = z.infer<typeof voyageMetaSchema>;
 export type Theme = z.infer<typeof themeSchema>;
@@ -277,15 +297,27 @@ function checkObjectives(level: LevelScript, ctx: z.RefinementCtx): void {
       });
     }
   });
-  // A freeCaged objective whose level has no cages is complete the instant it
-  // opens (its target is the cage count — see objectives.ts). Reject it at parse
-  // so a level can't ship a trivially-won objective.
+  // A freeCaged / clearAnchors objective whose level has no cage / anchor is
+  // complete the instant it opens (its target is the cage/anchor count — see
+  // objectives.ts). Reject it at parse so a level can't ship a trivially-won
+  // objective. Counted by obstacle TYPE, not total: an anchor-only board must not
+  // satisfy freeCaged, nor a cage-only board clearAnchors.
+  const cageCount = level.obstacles.filter((obstacle) => obstacle.type === 'cagedDot').length;
+  const anchorCount = level.obstacles.filter((obstacle) => obstacle.type === 'anchor').length;
   const wantsFreeCaged = level.objectives.some((objective) => objective.type === 'freeCaged');
-  if (wantsFreeCaged && level.obstacles.length === 0) {
+  if (wantsFreeCaged && cageCount === 0) {
     ctx.addIssue({
       code: 'custom',
       path: ['objectives'],
       message: 'a freeCaged objective requires at least one cagedDot obstacle',
+    });
+  }
+  const wantsClearAnchors = level.objectives.some((objective) => objective.type === 'clearAnchors');
+  if (wantsClearAnchors && anchorCount === 0) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['objectives'],
+      message: 'a clearAnchors objective requires at least one anchor obstacle',
     });
   }
 }
@@ -427,16 +459,17 @@ export function levelToConfig(level: LevelScript): GameConfig {
 /**
  * The level's caged cells with their per-cage layer counts — the single source of
  * truth the overlay and solver seed from. `index` is row-major (`row * cols +
- * col`); `layers` defaults to `1` when the obstacle omits the field. Obstacle enum
- * is `cagedDot` only, so every obstacle is a cage. When the enum grows (a
- * schemaVersion bump), filter by `type === 'cagedDot'` here.
+ * col`); `layers` defaults to `1` when the obstacle omits the field. Filtered by
+ * `type === 'cagedDot'` so the anchor variant of the obstacle union is excluded.
  */
 export function cagedCells(level: LevelScript): { index: CellIndex; layers: number }[] {
   const { cols } = level.board;
-  return level.obstacles.map((obstacle) => ({
-    index: obstacle.cell.row * cols + obstacle.cell.col,
-    layers: obstacle.layers ?? 1,
-  }));
+  return level.obstacles
+    .filter((obstacle) => obstacle.type === 'cagedDot')
+    .map((obstacle) => ({
+      index: obstacle.cell.row * cols + obstacle.cell.col,
+      layers: obstacle.layers ?? 1,
+    }));
 }
 
 /**
@@ -445,4 +478,16 @@ export function cagedCells(level: LevelScript): { index: CellIndex; layers: numb
  */
 export function cagedCellIndices(level: LevelScript): CellIndex[] {
   return cagedCells(level).map((c) => c.index);
+}
+
+/**
+ * The level's anchor cells as row-major board indices — the single source of
+ * truth the anchor overlay and solver seed from. Filtered by `type === 'anchor'`;
+ * the twin of `cagedCellIndices` for the other obstacle-union variant.
+ */
+export function anchorCells(level: LevelScript): CellIndex[] {
+  const { cols } = level.board;
+  return level.obstacles
+    .filter((obstacle) => obstacle.type === 'anchor')
+    .map((obstacle) => obstacle.cell.row * cols + obstacle.cell.col);
 }

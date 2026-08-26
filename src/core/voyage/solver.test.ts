@@ -2,14 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { ObjectiveProgress } from '../journey/objectives';
 import { parseLevelScript, type LevelScript } from '../level/level-script';
 import { protectedOf } from '../obstacles/caged-dot';
+import { resolveAnchorChain } from '../resolve-anchor-chain';
 import { resolveChain } from '../resolve/resolve-chain';
 import { parseBoard } from '../test-support/board-fixture';
-import type { GameConfig } from '../types';
+import type { CellIndex, GameConfig } from '../types';
 import { enumerateMoves } from './enumerate-moves';
 import { generateVoyageLevel } from './generate-level';
 import { SOLVER_MS_PER_MOVE } from './voyage-config';
 import { newVoyage } from './voyage-state';
-import { cageMoveEffect, objectiveGain, solve } from './solver';
+import { anchorMoveEffect, cageMoveEffect, objectiveGain, solve } from './solver';
 
 const PALETTE = 5;
 
@@ -25,6 +26,36 @@ const CONFIG_4X4: GameConfig = {
 
 /** The board seed a level ships with (every generated level carries one). */
 const seedOf = (level: LevelScript): number => level.seed ?? 0;
+
+/** A hand-built 6×6 clearAnchors level with three bottom-row weights. */
+const anchorLevel = (seed: number): LevelScript =>
+  parseLevelScript(
+    {
+      schemaVersion: 2,
+      id: 'voyage-test-anchors',
+      order: 1,
+      board: { cols: 6, rows: 6, colors: 3, minChain: 3 },
+      seed,
+      mode: 'voyage',
+      constraint: { type: 'moves', budget: 60 },
+      voyage: { index: 1, episode: 1, isBoss: false },
+      theme: {
+        biome: 'harbor',
+        variant: 'dawn',
+        particle: 'spray',
+        trim: 'brass',
+        parallaxSeed: 1,
+        boss: false,
+      },
+      objectives: [{ type: 'clearAnchors' }],
+      obstacles: [
+        { type: 'anchor', cell: { col: 1, row: 5 } },
+        { type: 'anchor', cell: { col: 3, row: 5 } },
+        { type: 'anchor', cell: { col: 5, row: 5 } },
+      ],
+    },
+    PALETTE,
+  );
 
 describe('solve', () => {
   it('wins a solvable generated level within its calibrated budget', () => {
@@ -135,6 +166,12 @@ describe('objectiveGain', () => {
     target: 1,
     done: false,
   };
+  const clearAnchors: ObjectiveProgress = {
+    objective: { type: 'clearAnchors' },
+    current: 0,
+    target: 3,
+    done: false,
+  };
 
   it('freeCaged returns the layers freed this move — one unit per chip', () => {
     expect(objectiveGain(freeAll, 0, [1, 2], 1)).toBe(1);
@@ -152,6 +189,73 @@ describe('objectiveGain', () => {
 
   it('clearColor clamps to the remaining target', () => {
     expect(objectiveGain({ ...clearRed, current: 4 }, 0, [1, 2, 3], 0)).toBe(1);
+  });
+
+  it('clearAnchors counts the weights removed this move, any colour', () => {
+    // The gain is the anchorsRemoved arg, independent of moveColor and pops.
+    expect(objectiveGain(clearAnchors, 0, [1, 2], 0, 2)).toBe(2);
+    expect(objectiveGain(clearAnchors, 1, [], 0, 1)).toBe(1);
+  });
+
+  it('clearAnchors clamps to the remaining target', () => {
+    expect(objectiveGain({ ...clearAnchors, current: 2 }, 0, [], 0, 3)).toBe(1);
+  });
+});
+
+describe('anchorMoveEffect — the solver ↔ runtime shared removal rule', () => {
+  const CFG_COLS = 4;
+
+  it('counts every weight 8-way adjacent to a cleared cell', () => {
+    // Anchor 5 is orthogonally adjacent to cleared cell 1; anchor 10 is not
+    // adjacent to any of {0,1,2}, so only one weight is removed.
+    expect(anchorMoveEffect(new Set([5, 10]), [0, 1, 2], CFG_COLS)).toBe(1);
+  });
+
+  it('is 0 on the empty anchor set (classic-play fast path)', () => {
+    expect(anchorMoveEffect(new Set(), [0, 1, 2], CFG_COLS)).toBe(0);
+  });
+
+  it('does not count a weight no cleared cell touches', () => {
+    expect(anchorMoveEffect(new Set([15]), [0, 1, 2], CFG_COLS)).toBe(0);
+  });
+});
+
+describe('solver ↔ runtime anchor parity', () => {
+  const CONFIG_COLS = 4;
+
+  it("the heuristic's removal count equals the resolution's freed weights", () => {
+    // Clearing the RRR chain (0,1,2) removes anchor 5 (adjacent to cell 1). The
+    // solver's anchorMoveEffect, fed the resolution's actual cleared cells, must
+    // reproduce the runtime's expandedCleared count — one rule, two callers.
+    const board = parseBoard('RRRB/BGBG/GBGB/BGBG').board;
+    const game = { config: CONFIG_4X4, board, score: 0, rngState: 0 };
+    const anchors = new Set<CellIndex>([5]);
+    const resolution = resolveAnchorChain(game, [0, 1, 2], new Map(), anchors);
+
+    expect(resolution).not.toBeNull();
+    expect(resolution?.expandedCleared).toEqual([5]);
+    const cleared = resolution?.cleared.map((cell) => cell.index) ?? [];
+    expect(anchorMoveEffect(anchors, cleared, CONFIG_COLS)).toBe(
+      resolution?.expandedCleared?.length ?? 0,
+    );
+  });
+
+  it('never proposes a move that links through a weight', () => {
+    const level = anchorLevel(20260826);
+    const vstate = newVoyage(level, seedOf(level));
+    const moves = enumerateMoves(vstate.game.board, vstate.game.config, vstate.anchors);
+
+    expect(moves.length).toBeGreaterThan(0);
+    for (const move of moves) {
+      for (const cell of move.chain) {
+        expect(vstate.anchors.has(cell)).toBe(false);
+      }
+    }
+  });
+
+  it('wins a level whose only objective is clearing the weights', () => {
+    const level = anchorLevel(20260826);
+    expect(solve(level, seedOf(level)).won).toBe(true);
   });
 });
 

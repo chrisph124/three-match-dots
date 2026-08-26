@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: 'Resolve integration (R1 seam)'
-status: todo
+status: done
 priority: P1
 effort: '5h'
 dependencies: [1]
@@ -43,8 +43,8 @@ cleared set by a caller-computed extra set".
       ⇒ byte-identical for every current caller (decision D-NAME).
 - [ ] New bridge `src/core/resolve-anchor-chain.ts`:
       `resolveAnchorChain(game, chain, caged, anchors): Resolution | null` = `resolveChain(game, chain,
-    protectedOf(caged), { skipCollect: anchors, expandCleared: (cleared) =>
-    removeAdjacent(anchors, cleared.map(c => c.index), game.config.cols).removed })`. This is the
+  protectedOf(caged), { skipCollect: anchors, expandCleared: (cleared) =>
+  removeAdjacent(anchors, cleared.map(c => c.index), game.config.cols).removed })`. This is the
       single bridge both meta hooks and the solver call; it composes cages AND anchors (caged +
       anchor coexistence).
 - [ ] Keep `resolveCagedChain` (`src/core/resolve-caged-chain.ts:21`) working. Either delegate it to

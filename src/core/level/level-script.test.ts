@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../config';
 import {
+  anchorCells,
   cagedCellIndices,
   cagedCells,
   constraintOf,
@@ -166,6 +167,113 @@ describe('obstacle layers field', () => {
   });
 });
 
+describe('anchor obstacle + clearAnchors objective', () => {
+  /** valid() with an anchor obstacle at col 0,row 0 and a clearAnchors goal. */
+  function withAnchor(): Record<string, unknown> {
+    const input = valid();
+    (input.obstacles as Record<string, unknown>[]).push({
+      type: 'anchor',
+      cell: { col: 0, row: 0 },
+    });
+    (input.objectives as Record<string, unknown>[]).push({ type: 'clearAnchors' });
+    return input;
+  }
+
+  it('accepts an anchor obstacle alongside caged dots', () => {
+    const level = parseLevelScript(withAnchor(), PALETTE);
+    expect(level.obstacles).toHaveLength(4);
+    expect(level.obstacles.some((o) => o.type === 'anchor')).toBe(true);
+  });
+
+  it('accepts a clearAnchors objective when the level has an anchor', () => {
+    const level = parseLevelScript(withAnchor(), PALETTE);
+    expect(level.objectives.some((o) => o.type === 'clearAnchors')).toBe(true);
+  });
+
+  it('accepts schemaVersion 3 (anchor/clearAnchors are additive and un-gated)', () => {
+    const input = withAnchor();
+    input.schemaVersion = 3;
+    expect(() => parseLevelScript(input, PALETTE)).not.toThrow();
+  });
+
+  it('accepts schemaVersion 3 on a plain caged level too', () => {
+    const input = valid();
+    input.schemaVersion = 3;
+    expect(() => parseLevelScript(input, PALETTE)).not.toThrow();
+  });
+
+  it('strips an authored count on clearAnchors (mirrors freeCaged — runtime target is the anchor count)', () => {
+    const input = withAnchor();
+    (input.objectives as Record<string, unknown>[])[2] = { type: 'clearAnchors', count: 9 };
+    const level = parseLevelScript(input, PALETTE);
+    const goal = level.objectives.find((o) => o.type === 'clearAnchors');
+    expect(goal).toEqual({ type: 'clearAnchors' });
+  });
+
+  it('rejects an off-board anchor cell', () => {
+    const input = valid();
+    input.obstacles = [{ type: 'anchor', cell: { col: 6, row: 0 } }]; // col 6 on a 6-wide board
+    input.objectives = [{ type: 'clearColor', color: 0, count: 20 }];
+    expect(() => parseLevelScript(input, PALETTE)).toThrow();
+  });
+
+  it('rejects a cagedDot and an anchor stacked on the same cell', () => {
+    const input = valid();
+    input.obstacles = [
+      { type: 'cagedDot', cell: { col: 1, row: 1 } },
+      { type: 'anchor', cell: { col: 1, row: 1 } },
+    ];
+    input.objectives = [{ type: 'clearColor', color: 0, count: 20 }];
+    expect(() => parseLevelScript(input, PALETTE)).toThrow();
+  });
+
+  it('rejects a clearAnchors objective when the level has no anchor obstacle', () => {
+    const input = valid();
+    input.objectives = [{ type: 'clearColor', color: 0, count: 20 }, { type: 'clearAnchors' }];
+    // obstacles are all cagedDot (no anchor) → clearAnchors is trivially won.
+    expect(() => parseLevelScript(input, PALETTE)).toThrow();
+  });
+
+  it('rejects a freeCaged objective when the level has only anchor obstacles (no cage)', () => {
+    const input = valid();
+    input.objectives = [{ type: 'freeCaged' }];
+    input.obstacles = [{ type: 'anchor', cell: { col: 0, row: 0 } }];
+    expect(() => parseLevelScript(input, PALETTE)).toThrow();
+  });
+});
+
+describe('anchorCells / cagedCells (typed enumeration on a mixed board)', () => {
+  function mixed() {
+    const input = valid();
+    (input.obstacles as Record<string, unknown>[]).push({
+      type: 'anchor',
+      cell: { col: 0, row: 0 },
+    });
+    (input.objectives as Record<string, unknown>[]).push({ type: 'clearAnchors' });
+    return parseLevelScript(input, PALETTE);
+  }
+
+  it('cagedCells returns only cagedDot cells (anchors filtered out)', () => {
+    expect(cagedCells(mixed())).toEqual([
+      { index: 20, layers: 1 },
+      { index: 21, layers: 1 },
+      { index: 22, layers: 1 },
+    ]);
+  });
+
+  it('cagedCellIndices ignores anchors', () => {
+    expect(cagedCellIndices(mixed())).toEqual([20, 21, 22]);
+  });
+
+  it('anchorCells returns only anchor cells as row-major indices', () => {
+    expect(anchorCells(mixed())).toEqual([0]); // col 0,row 0 → 0
+  });
+
+  it('anchorCells is empty on a cage-only level', () => {
+    expect(anchorCells(parseLevelScript(valid(), PALETTE))).toEqual([]);
+  });
+});
+
 describe('parseLevelScript — fail-fast rejections', () => {
   // Returns the parse as a thunk (never called here) so each test asserts
   // `.toThrow()` in its own body — the assertion stays visible to the linter
@@ -179,10 +287,10 @@ describe('parseLevelScript — fail-fast rejections', () => {
     };
 
   it('rejects an unknown schemaVersion', () => {
-    // 1 and 2 are the only known versions; 3 is not understood.
+    // 1, 2 and 3 are the known versions; 4 is not understood.
     expect(
       parsingMutated((i) => {
-        i.schemaVersion = 3;
+        i.schemaVersion = 4;
       }),
     ).toThrow();
   });
@@ -279,9 +387,11 @@ describe('parseLevelScript — fail-fast rejections', () => {
   });
 
   it('rejects an unknown obstacle type', () => {
+    // `lockedTile` is a catalog obstacle not yet in the schema (cagedDot + anchor
+    // are the only known variants), so it must still fail the discriminated union.
     expect(
       parsingMutated((i) => {
-        i.obstacles = [{ type: 'anchor', cell: { col: 1, row: 1 } }];
+        i.obstacles = [{ type: 'lockedTile', cell: { col: 1, row: 1 } }];
       }),
     ).toThrow();
   });

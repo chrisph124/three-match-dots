@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { constraintOf, levelToConfig, type LevelScript } from '../core/level/level-script';
-import { resolveCagedChain } from '../core/resolve-caged-chain';
-import type { Board, ClearedCell, Resolution } from '../core/types';
+import { toMask } from '../core/obstacles/anchor';
+import { resolveAnchorChain } from '../core/resolve-anchor-chain';
+import type { Board, CellIndex, ClearedCell, Resolution } from '../core/types';
 import {
   applyVoyageResolution,
   newVoyage,
@@ -56,6 +57,13 @@ export type VoyageClearEvent = {
 // writes lexically inside a hook body, so the mutation lives out here.
 function writeBoardMirror(chainState: ChainState, board: Board): void {
   chainState.board.value = [...board];
+}
+function writeAnchorMask(
+  chainState: ChainState,
+  anchors: ReadonlySet<CellIndex>,
+  cellCount: number,
+): void {
+  chainState.anchors.value = toMask(anchors, cellCount);
 }
 function unlock(chainState: ChainState): void {
   chainState.isResolving.value = 0;
@@ -119,8 +127,12 @@ export function useVoyageState({ level, layout, anim, chainState }: Options) {
     (next: VoyageState) => {
       advance(next);
       writeBoardMirror(chainState, next.game.board);
+      // Anchors only ever change here (a clear removed one, gravity moved one);
+      // settle preserves the set in place. Mirror them on the same cadence as
+      // the board so the worklet's link-suppression stays in step.
+      writeAnchorMask(chainState, next.anchors, cellCount);
     },
-    [advance, chainState],
+    [advance, chainState, cellCount],
   );
 
   // Seed the board mirror once with the real dealt board (chainState is built
@@ -132,7 +144,8 @@ export function useVoyageState({ level, layout, anim, chainState }: Options) {
     }
     seeded.current = true;
     writeBoardMirror(chainState, latest.current.game.board);
-  }, [chainState]);
+    writeAnchorMask(chainState, latest.current.anchors, cellCount);
+  }, [chainState, cellCount]);
 
   const settle = useCallback(() => {
     // Re-read the freshest state instead of trusting a snapshot captured when
@@ -183,10 +196,17 @@ export function useVoyageState({ level, layout, anim, chainState }: Options) {
 
   const commit = useCallback(
     (chain: number[]) => {
-      // Route through the shared caged wrapper: it protects every multi-layer
-      // cage so a hit chips a layer instead of popping the dot. A cage-free board
-      // yields an empty protected set ⇒ the byte-identical classic resolve.
-      const resolution = resolveCagedChain(latest.current.game, chain, latest.current.caged);
+      // Route through the shared obstacle bridge: it protects every multi-layer
+      // cage so a hit chips a layer instead of popping the dot, and removes any
+      // weight a cleared cell is 8-way adjacent to in the same pass (echoed on
+      // `expandedCleared`). A board with neither yields empty overlays ⇒ the
+      // byte-identical classic resolve.
+      const resolution = resolveAnchorChain(
+        latest.current.game,
+        chain,
+        latest.current.caged,
+        latest.current.anchors,
+      );
       if (resolution === null) {
         // A wasted attempt can cost the budget (timed/mistakes) — and the
         // penalty can itself end the run. For a moves budget it's a no-op.
@@ -268,6 +288,9 @@ export function useVoyageState({ level, layout, anim, chainState }: Options) {
       // each colour segment as its cages are freed, off the same state the
       // reducer owns (no parallel counter).
       caged: vstate.caged,
+      // Live anchor overlay (cells holding a weight) — the render layer reads it
+      // to draw the weights; it shrinks as adjacent clears remove them.
+      anchors: vstate.anchors,
       status: vstate.status,
       // The last committed clear (or null) — the render layer fires shards/ripple
       // off it; see VoyageClearEvent.
@@ -279,6 +302,7 @@ export function useVoyageState({ level, layout, anim, chainState }: Options) {
       vstate.budget,
       vstate.objectives,
       vstate.caged,
+      vstate.anchors,
       vstate.status,
       clearEvent,
       commit,

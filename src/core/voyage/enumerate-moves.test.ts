@@ -1,10 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import type { Board, GameConfig } from '../types';
+import { hasLegalMove } from '../deadlock';
+import type { Board, CellIndex, GameConfig } from '../types';
 import { enumerateMoves } from './enumerate-moves';
 
 /** A minimal GameConfig for enumeration (only rows/cols/minChain/lineLength are read). */
 function cfg(rows: number, cols: number, minChain: number, lineLength: number): GameConfig {
   return { rows, cols, colors: 9, minChain, lineLength, baseScore: 10, sweepMultiplier: 2 };
+}
+
+/** Every cell any enumerated move touches — a chain member of some proposed move. */
+function touchedCells(moves: { chain: readonly CellIndex[] }[]): Set<CellIndex> {
+  const cells = new Set<CellIndex>();
+  for (const move of moves) {
+    for (const cell of move.chain) {
+      cells.add(cell);
+    }
+  }
+  return cells;
 }
 
 describe('enumerateMoves', () => {
@@ -59,5 +71,50 @@ describe('enumerateMoves', () => {
     );
     expect(new Set(keys).size).toBe(moves.length);
     expect(enumerateMoves(board, config)).toEqual(moves);
+  });
+});
+
+describe('enumerateMoves — anchors', () => {
+  it('is byte-identical to passing no set when the anchor set is empty', () => {
+    const board: Board = [
+      0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 2,
+      2, 2, 2, 2, 2,
+    ];
+    const config = cfg(6, 6, 3, 5);
+    expect(enumerateMoves(board, config, new Set())).toEqual(enumerateMoves(board, config));
+  });
+
+  it('never routes a chain or sweep through an anchored cell', () => {
+    // A solid one-colour 3×3: every path/loop would normally cross the centre.
+    const board: Board = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    const anchors = new Set<CellIndex>([4]); // the centre cell holds a weight
+    const moves = enumerateMoves(board, cfg(3, 3, 3, 5), anchors);
+
+    expect(moves.length).toBeGreaterThan(0);
+    expect(touchedCells(moves).has(4)).toBe(false);
+    // The four 2×2 loops each include the centre, so all are suppressed.
+    expect(moves.some((m) => m.kind === 'square-loop')).toBe(false);
+  });
+
+  it('agrees with hasLegalMove on an anchor board (both find a move, or neither)', () => {
+    // Row 0 is a run of three colour-0 cells; anchoring the middle one strands
+    // the only 3-chain (cells 0 and 2 are not 8-adjacent to each other around it…
+    // actually they are diagonally via row 1). Assert the two authorities agree.
+    const fixtures: { board: Board; rows: number; cols: number }[] = [
+      { board: [0, 0, 0, 1, 2, 1, 2, 1, 2], rows: 3, cols: 3 },
+      { board: [0, 0, 0, 0, 0, 0, 0, 0, 0], rows: 3, cols: 3 },
+      { board: [0, 1, 0, 1, 0, 1, 0, 1, 0], rows: 3, cols: 3 },
+    ];
+    const anchorSets: CellIndex[][] = [[], [4], [0, 4, 8], [1, 3, 5, 7]];
+
+    for (const { board, rows, cols } of fixtures) {
+      for (const cells of anchorSets) {
+        const anchors = new Set<CellIndex>(cells);
+        const config = cfg(rows, cols, 3, 5);
+        const enumerated = enumerateMoves(board, config, anchors).length > 0;
+        const legal = hasLegalMove(board, rows, cols, 3, anchors);
+        expect(enumerated).toBe(legal);
+      }
+    }
   });
 });

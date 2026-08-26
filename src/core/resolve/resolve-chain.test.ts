@@ -267,4 +267,55 @@ describe('resolveChain', () => {
       expect(result?.board).toEqual([0, 0, 0, 0]); // nothing removed or refilled
     });
   });
+
+  describe('generic seam (skipCollect + expandCleared)', () => {
+    const idxOf = (cells: readonly { index: number }[]) => cells.map((c) => c.index);
+
+    it('is byte-identical to the classic path when the seam is omitted or a no-op', () => {
+      for (const seed of [1, 99, 2026]) {
+        const base = resolveChain(stateFrom('RR/RR/RR', seed), [0, 1, 3, 2, 0]);
+        // An empty seam object, an empty skip set, and a []-returning expand are all no-ops.
+        expect(resolveChain(stateFrom('RR/RR/RR', seed), [0, 1, 3, 2, 0], new Set(), {})).toEqual(
+          base,
+        );
+        expect(
+          resolveChain(stateFrom('RR/RR/RR', seed), [0, 1, 3, 2, 0], new Set(), {
+            skipCollect: new Set(),
+            expandCleared: () => [],
+          }),
+        ).toEqual(base);
+        // A byte-identical shape carries no expandedCleared key.
+        expect(base && 'expandedCleared' in base).toBe(false);
+      }
+    });
+
+    it('skipCollect excludes a swept cell from cleared without touching the chain loop', () => {
+      // 2x2 loop over 0,1,2,3 sweeps all six R; skipping the sweep cell 5 drops it.
+      const result = resolveChain(stateFrom('RR/RR/RR'), [0, 1, 3, 2, 0], new Set(), {
+        skipCollect: new Set([5]),
+      });
+      expect(result?.kind).toBe('square-loop');
+      expect(idxOf(result?.cleared ?? [])).toEqual([0, 1, 3, 2, 4]); // drag order 0,1,3,2 then sweep 4; 5 skipped
+      expect(result && 'expandedCleared' in result).toBe(false); // skip alone adds nothing
+    });
+
+    it('expandCleared empties an extra cell that then falls/refills and is echoed', () => {
+      // Chain [3,4,5] pops the middle R row; expand cell 7 (a G) as an extra empty.
+      // A B from row 0 col 1 falls into the freed cell 7 — it rejoins gravity.
+      const result = resolveChain(stateFrom('BBB/RRR/GGG'), [3, 4, 5], new Set(), {
+        expandCleared: () => [7],
+      });
+      expect(idxOf(result?.cleared ?? [])).toEqual([3, 4, 5]); // expanded NOT in cleared
+      expect(result?.expandedCleared).toEqual([7]);
+      expect(result?.falls).toContainEqual({ from: 1, to: 7 }); // a dot fell into the freed cell
+    });
+
+    it('scores ONLY cleared — an expanded cell contributes zero to the score', () => {
+      const withExpand = resolveChain(stateFrom('BBB/RRR/GGG'), [3, 4, 5], new Set(), {
+        expandCleared: () => [7],
+      });
+      const withoutExpand = resolveChain(stateFrom('BBB/RRR/GGG'), [3, 4, 5]);
+      expect(withExpand?.scoreDelta).toBe(withoutExpand?.scoreDelta);
+    });
+  });
 });

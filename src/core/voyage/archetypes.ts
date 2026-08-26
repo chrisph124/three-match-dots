@@ -19,7 +19,8 @@ export type ConstraintKind = Constraint['type'];
  * The objective template a level assembles. Kept in lockstep with the signature
  * comparator's objective classes (`level-signature.ts`) so variety reads true.
  */
-export type ObjectiveKind = 'color' | 'twoColors' | 'caged' | 'colorAndCaged';
+export type ObjectiveKind =
+  'color' | 'twoColors' | 'caged' | 'colorAndCaged' | 'anchors' | 'colorAndAnchors';
 
 export type Archetype = {
   readonly key: string;
@@ -74,6 +75,22 @@ export const ARCHETYPES: readonly Archetype[] = [
     profile: PROFILES.obstacleHeavy,
     constraints: ['moves', 'mistakes'],
     objective: 'colorAndCaged',
+    weight: 2,
+    colorCap: 5,
+  },
+  {
+    key: 'anchor-break',
+    profile: PROFILES.obstacleHeavy,
+    constraints: ['moves', 'mistakes'],
+    objective: 'anchors',
+    weight: 2,
+    colorCap: 4,
+  },
+  {
+    key: 'anchor-and-clear',
+    profile: PROFILES.obstacleHeavy,
+    constraints: ['moves', 'mistakes'],
+    objective: 'colorAndAnchors',
     weight: 2,
     colorCap: 5,
   },

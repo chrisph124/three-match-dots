@@ -18,6 +18,13 @@ export type ChainState = {
   readonly isResolving: SharedValue<number>;
   /** Colour id of the live chain, or -1 when there is no chain. */
   readonly linkColor: SharedValue<number>;
+  /**
+   * 0/1 mask indexed by cell: 1 where an anchor (weight) sits. The worklet
+   * refuses to start or extend a chain onto a masked cell — an anchor is never
+   * linkable. An empty or short mask (the Endless / anchor-free default) blocks
+   * nothing: an out-of-range read is `undefined`, never `=== 1`.
+   */
+  readonly anchors: SharedValue<number[]>;
 };
 
 export function useChainState(initialBoard: readonly number[]): ChainState {
@@ -26,6 +33,7 @@ export function useChainState(initialBoard: readonly number[]): ChainState {
   const board = useSharedValue<number[]>([...initialBoard]);
   const isResolving = useSharedValue(0);
   const linkColor = useSharedValue(-1);
+  const anchors = useSharedValue<number[]>([]);
 
   // Same reasoning as `useBoardAnimation`: each shared value keeps its
   // identity across renders, so memoising the object they are bundled into
@@ -34,8 +42,8 @@ export function useChainState(initialBoard: readonly number[]): ChainState {
   // deps list the shared values; their identities are stable, so the array
   // never changes and the memo still never recomputes.
   return useMemo(
-    () => ({ chain, finger, board, isResolving, linkColor }),
-    [chain, finger, board, isResolving, linkColor],
+    () => ({ chain, finger, board, isResolving, linkColor, anchors }),
+    [chain, finger, board, isResolving, linkColor, anchors],
   );
 }
 
@@ -59,7 +67,7 @@ type GestureOptions = {
  * without disabling anything.
  */
 function buildPanGesture({ state, anim, layout, minChain, lineLength, onCommit }: GestureOptions) {
-  const { chain, finger, board, isResolving, linkColor } = state;
+  const { chain, finger, board, isResolving, linkColor, anchors } = state;
 
   return Gesture.Pan()
     .minDistance(0)
@@ -71,8 +79,10 @@ function buildPanGesture({ state, anim, layout, minChain, lineLength, onCommit }
       }
       finger.value = { x: event.x, y: event.y };
       const cell = cellAtPoint(event.x, event.y, layout);
-      chain.value = cell >= 0 ? [cell] : [];
-      linkColor.value = cell >= 0 ? board.value[cell] : -1;
+      // An anchored cell is a weight, not a dot — a chain can never begin on it.
+      const startable = cell >= 0 && anchors.value[cell] !== 1;
+      chain.value = startable ? [cell] : [];
+      linkColor.value = startable ? board.value[cell] : -1;
     })
     .onUpdate((event) => {
       'worklet';
@@ -81,7 +91,9 @@ function buildPanGesture({ state, anim, layout, minChain, lineLength, onCommit }
       }
       finger.value = { x: event.x, y: event.y };
       const cell = cellAtPoint(event.x, event.y, layout);
-      if (cell < 0) {
+      // Skip an off-board point AND an anchored cell: dragging across a weight is
+      // a no-op (the chain is unchanged), so a weight can never join a link.
+      if (cell < 0 || anchors.value[cell] === 1) {
         return;
       }
       const verdict = canAppend(chain.value, cell, board.value, layout.cols);

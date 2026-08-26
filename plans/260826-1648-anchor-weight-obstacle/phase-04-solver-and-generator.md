@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: 'Solver + generator (winnability)'
-status: todo
+status: done
 priority: P1
 effort: '5h'
 dependencies: [3]

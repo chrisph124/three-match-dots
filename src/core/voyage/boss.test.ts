@@ -52,7 +52,7 @@ describe('cagedCore (level 10)', () => {
   });
 
   it('cages every core cell at 3 layers (boss band)', () => {
-    expect(level.obstacles.every((o) => o.layers === 3)).toBe(true);
+    expect(level.obstacles.every((o) => o.type === 'cagedDot' && o.layers === 3)).toBe(true);
     expect(cagedCells(level).every((c) => c.layers === 3)).toBe(true);
   });
 });

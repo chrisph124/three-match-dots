@@ -1,7 +1,7 @@
 ---
 phase: 5
 title: 'Render overlay + HUD (on-device)'
-status: todo
+status: done
 priority: P2
 effort: '4h'
 dependencies: [1, 2, 3]
@@ -22,7 +22,7 @@ NOT on Voyage generation (Phase 4) — an authored Journey level exercises it.
 ### Functional
 
 - [ ] New `src/render/anchor-overlay-layer.tsx` — `AnchorOverlayLayer({ anchors, event, layout, anim,
-    reduceMotion })`, a sibling absolute overlay with `pointerEvents="none"`, mirroring
+  reduceMotion })`, a sibling absolute overlay with `pointerEvents="none"`, mirroring
       `src/render/cage-overlay-layer.tsx` (`CageOverlayLayer`, `:154`). One paper-weight frame per
       anchored cell, positioned via `layout` geometry (reuse `centerX`/`centerY` from
       `src/render/geometry.ts` — no new geometry math in the component).

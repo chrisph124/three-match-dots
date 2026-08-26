@@ -43,12 +43,13 @@ function BudgetReadout({ budget, emphasis }: { budget: VoyageBudget; emphasis: b
 
 function ObjectiveBadge({ entry }: { entry: ObjectiveProgress }) {
   const { objective, current, target, done } = entry;
+  const label = objective.type === 'clearAnchors' ? 'Anchors' : 'Cages';
   return (
     <View style={styles.objective}>
       {objective.type === 'clearColor' ? (
         <View style={[styles.swatch, { backgroundColor: colorFor(objective.color) }]} />
       ) : (
-        <Text style={styles.objectiveLabel}>Cages</Text>
+        <Text style={styles.objectiveLabel}>{label}</Text>
       )}
       <Text style={[styles.objectiveCount, done && styles.objectiveDone]}>
         {current}/{target}

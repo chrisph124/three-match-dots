@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: 'State folds, objective, input suppression'
-status: todo
+status: done
 priority: P1
 effort: '5h'
 dependencies: [2]

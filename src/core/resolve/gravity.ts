@@ -1,19 +1,23 @@
-import type { Board, ClearedCell, Color, FallMove } from '../types';
+import type { Board, CellIndex, Color, FallMove } from '../types';
 import { EMPTY } from '../types';
 
 /**
- * Punches out the cleared cells, then settles each column downward.
+ * Punches out each listed cell (by index), then settles each column downward.
  * Falls are emitted per column bottom-up, columns left to right, so the
  * render layer can stagger them straight from the array order.
+ *
+ * The input is the minimal `{ index }` shape — gravity only ever reads the
+ * index. Callers pass the scored `cleared` cells and may append extra emptied
+ * cells (a caller-computed expand set) without minting a colour/reason for them.
  */
 export function applyGravity(
   board: Board,
-  cleared: readonly ClearedCell[],
+  emptied: readonly { readonly index: CellIndex }[],
   rows: number,
   cols: number,
 ): { board: Color[]; falls: FallMove[] } {
   const next: Color[] = [...board];
-  for (const cell of cleared) {
+  for (const cell of emptied) {
     next[cell.index] = EMPTY;
   }
 
